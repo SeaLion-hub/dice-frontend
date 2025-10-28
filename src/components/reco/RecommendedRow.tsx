@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge"; // shadcn/ui에 badge 컴포넌트 있다고 가정
+// import { Badge } from "@/components/ui/badge"; // shadcn/ui에 badge 컴포넌트 있다고 가정
+import { Badge } from "../ui/badge"; // 경로를 실제 Badge 컴포넌트 위치로 수정
 import { PagedResponse, NoticeItem } from "@/types/notices";
 
 export default function RecommendedRow() {
