@@ -4,6 +4,12 @@ import { useMemo, useRef, useEffect, useCallback } from "react";
 import classNames from "classnames";
 import Link from "next/link";
 
+interface NoticeItem {
+  id: string;
+  title: string;
+  // Add other notice properties as needed
+}
+
 import RecommendedRow from "@/components/reco/RecommendedRow";
 import { NoticeCard } from "@/components/notices/NoticeCard";
 import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
@@ -16,6 +22,11 @@ import {
   useNoticePreferences,
   NoticeSort,
 } from "@/hooks/useNoticePreferences";
+
+function hasToken() {
+  if (typeof window === "undefined") return false;
+  return !!localStorage.getItem("access_token");
+}
 
 export default function NoticesPage() {
   const {
@@ -51,20 +62,30 @@ export default function NoticesPage() {
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { rootMargin: "200px" }
-    );
+    
+    const io = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    });
+
     io.observe(el);
     return () => io.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const items = useMemo(() => {
+    if (!data) return [];
+    // react-query useInfiniteQuery 구조 대응
+    // data.pages[i]가 { items: NoticeItem[] } 형태라고 가정
+    // 아니라면 백엔드 응답에 맞춰 아래 map 부분만 수정
+    // @ts-ignore
+    if (Array.isArray(data.pages)) {
+      // @ts-ignore
+      return data.pages.flatMap((p) => p?.items ?? []);
+    }
+    // fallback
+    // @ts-ignore
     return data?.items ?? [];
   }, [data]);
 
@@ -195,9 +216,7 @@ export default function NoticesPage() {
 
             <select
               value={filters.dateRange}
-              onChange={(e) =>
-                handleFilterChange("dateRange", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("dateRange", e.target.value)}
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
               <option value="all">전체 기간</option>
@@ -215,7 +234,7 @@ export default function NoticesPage() {
         </div>
       </div>
 
-      {tab === "custom" && <RecommendedRow />}
+      {tab === "custom" && hasToken() && <RecommendedRow />}
 
       <section className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {isLoading &&
@@ -234,7 +253,7 @@ export default function NoticesPage() {
 
         {!isLoading && !isError && items.length === 0 && renderEmptyState()}
 
-        {items.map((notice) => (
+        {items.map((notice: NoticeItem) => (
           <NoticeCard key={notice.id} item={notice} />
         ))}
       </section>

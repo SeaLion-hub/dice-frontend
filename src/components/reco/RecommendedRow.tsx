@@ -3,26 +3,48 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
-
 import { Badge } from "../ui/badge";
 import { PagedResponse, NoticeItem } from "@/types/notices";
 
-type HiddenMap = Record<string | number, boolean>;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
+function getToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("access_token");
+}
 
 export default function RecommendedRow() {
+  const token = getToken();
+  const isAuthed = !!token;
+
   const { data, isLoading, isError, refetch } = useQuery<
     PagedResponse<NoticeItem>
   >({
     queryKey: ["recommended"],
     queryFn: async () => {
-      const r = await fetch("/api/notices/recommended?limit=10&offset=0");
+      if (!API_URL) throw new Error("API_URL is not set");
+      const url = new URL("/notices/recommended", API_URL);
+      url.searchParams.set("limit", "10");
+      url.searchParams.set("offset", "0");
+
+      const r = await fetch(url.toString(), {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+      });
+      if (r.status === 401) {
+        throw new Error("unauthorized");
+      }
       if (!r.ok) throw new Error("failed");
       return r.json();
     },
+    enabled: isAuthed, // 토큰 없으면 호출하지 않음
     staleTime: 60_000,
   });
 
-  const [hidden, setHidden] = useState<HiddenMap>({});
+  const [hidden, setHidden] = useState<Record<string | number, boolean>>({});
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const scrollByCardWidth = useCallback((dir: "left" | "right") => {
@@ -34,42 +56,47 @@ export default function RecommendedRow() {
 
   const handleHide = useCallback(async (noticeId: number | string) => {
     setHidden((prev) => ({ ...prev, [noticeId]: true }));
-
     try {
-      await fetch("/api/notices/feedback", {
+      // 선택사항: 피드백 API에도 토큰 필요하다면 헤더 추가
+      await fetch(`${API_URL}/notices/feedback`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          noticeId,
-          action: "hide",
-          ts: Date.now(),
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ noticeId, action: "hide", ts: Date.now() }),
       });
-    } catch (err) {
+    } catch {
       setHidden((prev) => {
         const copy = { ...prev };
         delete copy[noticeId];
         return copy;
       });
     }
-  }, []);
+  }, [token]);
 
-  const allItems = data?.items ?? [];
-  const items = useMemo(
-    () => allItems.filter((it) => !hidden[it.id]),
-    [allItems, hidden]
-  );
+  if (!isAuthed) {
+    return (
+      <section className="mt-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">회원님께 추천!</h2>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+          맞춤 추천은 로그인 후 이용할 수 있어요.{" "}
+          <Link href="/login" className="text-blue-600 underline">로그인</Link>
+        </div>
+      </section>
+    );
+  }
 
   if (isLoading) {
     return (
       <section className="mt-4">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            회원님께 추천!
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">회원님께 추천!</h2>
           <span className="text-sm text-gray-400">불러오는 중…</span>
         </div>
-
         <div className="relative">
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
             {[0, 1, 2].map((i) => (
@@ -90,7 +117,6 @@ export default function RecommendedRow() {
               </div>
             ))}
           </div>
-
           <FadeEdges />
         </div>
       </section>
@@ -101,35 +127,31 @@ export default function RecommendedRow() {
     return (
       <section className="mt-4">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            회원님께 추천!
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">회원님께 추천!</h2>
         </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           추천을 불러오지 못했어요.{" "}
-          <button className="underline" onClick={() => refetch()}>
-            다시 시도
-          </button>
+          <button className="underline" onClick={() => refetch()}>다시 시도</button>
         </div>
       </section>
     );
   }
 
+  const allItems = data?.items ?? [];
+  const items = useMemo(
+    () => allItems.filter((it) => !hidden[it.id]),
+    [allItems, hidden]
+  );
+
   if (items.length === 0) {
     return (
       <section className="mt-4">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            회원님께 추천!
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">회원님께 추천!</h2>
         </div>
-
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
-          아직 보여드릴 추천이 없어요. 프로필을 업데이트하면 더 정확한 추천을
-          받을 수 있어요.{" "}
-          <Link href="/profile" className="text-blue-600 underline">
-            프로필 수정
-          </Link>
+          아직 보여드릴 추천이 없어요. 프로필을 업데이트하면 더 정확한 추천을 받을 수 있어요.{" "}
+          <Link href="/profile" className="text-blue-600 underline">프로필 수정</Link>
         </div>
       </section>
     );
@@ -163,24 +185,17 @@ export default function RecommendedRow() {
   return (
     <section className="mt-4" aria-labelledby="reco-title">
       <div className="mb-2 flex items-center justify-between">
-        <h2
-          id="reco-title"
-          className="text-lg font-semibold text-gray-900 flex items-center gap-2"
-        >
+        <h2 id="reco-title" className="text-lg font-semibold text-gray-900 flex items-center gap-2">
           회원님께 추천!
           <span
             className="cursor-help select-none text-[0.7rem] leading-none text-gray-400 hover:text-gray-600"
-            title="회원님의 학년, 전공, 어학, GPA 등 프로필과 유사한 지원자 패턴을 분석해 매칭된 공고예요. 👍"
+            title="회원님의 학년, 전공, 어학, GPA 등 프로필과 유사한 지원자 패턴을 분석해 매칭된 공고예요."
             aria-label="추천 방식 안내"
           >
             ⓘ
           </span>
         </h2>
-
-        <Link
-          href="/notices?tab=custom"
-          className="text-sm text-blue-600 hover:underline whitespace-nowrap"
-        >
+        <Link href="/notices?tab=custom" className="text-sm text-blue-600 hover:underline whitespace-nowrap">
           전체 보기
         </Link>
       </div>
@@ -229,10 +244,7 @@ export default function RecommendedRow() {
               <div className="flex items-start justify-between pr-8">
                 <SuitBadge s={item.suitability} />
                 {item.posted_at && (
-                  <time
-                    className="text-xs text-gray-500"
-                    dateTime={item.posted_at}
-                  >
+                  <time className="text-xs text-gray-500" dateTime={item.posted_at}>
                     {new Date(item.posted_at).toLocaleDateString()}
                   </time>
                 )}
@@ -249,25 +261,19 @@ export default function RecommendedRow() {
                 {item.qualification_ai?.grade_years && (
                   <div>
                     <dt className="inline">🎓 학년</dt>
-                    <dd className="ml-2 inline">
-                      {item.qualification_ai.grade_years}
-                    </dd>
+                    <dd className="ml-2 inline">{item.qualification_ai.grade_years}</dd>
                   </div>
                 )}
                 {item.qualification_ai?.gpa && (
                   <div>
                     <dt className="inline">📊 학점</dt>
-                    <dd className="ml-2 inline">
-                      {item.qualification_ai.gpa}
-                    </dd>
+                    <dd className="ml-2 inline">{item.qualification_ai.gpa}</dd>
                   </div>
                 )}
                 {item.qualification_ai?.language && (
                   <div>
                     <dt className="inline">🗣️ 어학</dt>
-                    <dd className="ml-2 inline">
-                      {item.qualification_ai.language}
-                    </dd>
+                    <dd className="ml-2 inline">{item.qualification_ai.language}</dd>
                   </div>
                 )}
               </dl>
@@ -278,7 +284,7 @@ export default function RecommendedRow() {
                     <span className="mr-1">나와 관련 높은 이유</span>
                     <span
                       className="cursor-help select-none text-[0.7rem] leading-none text-blue-500 hover:text-blue-700"
-                      title="이 공고가 특히 회원님께 적합하다고 판단된 핵심 근거예요. ✔️"
+                      title="이 공고가 특히 회원님께 적합하다고 판단된 핵심 근거예요."
                       aria-label="이유 설명 보기"
                     >
                       ⓘ

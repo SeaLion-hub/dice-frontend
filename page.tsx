@@ -78,7 +78,7 @@ export default function NoticesPage() {
    * FLATTEN PAGES
    */
   const items = useMemo(() => {
-    return data?.pages.flatMap((p) => p.items) ?? [];
+    return data?.items ?? [];
   }, [data]);
 
   /**

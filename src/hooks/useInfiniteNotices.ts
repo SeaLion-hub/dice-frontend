@@ -62,7 +62,6 @@ export const useInfiniteNotices = ({
       const { data } = await axios.get<BackendResponse>("/api/notices", {
         params,
       });
-
       return {
         items: data.items,
         offset: pageParam,
