@@ -1,37 +1,77 @@
-"use client";
-
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { PagedResponse, NoticeItem } from "@/types/notices";
+import axios from "axios";
 
-type UseInfiniteNoticesParams = {
-  tab: "custom" | "all";
-  limit?: number;
+type NoticeItem = {
+  id: string;
+  title: string;
+  source_college: string;
+  created_at: string;
+  hashtags_ai: string[];
+  view_count: number;
+  deadline: string | null;
+  summary_raw?: string;
+  category_ai?: string;
+  read?: boolean;
 };
 
-export function useInfiniteNotices(params: UseInfiniteNoticesParams) {
-  const limit = params.limit ?? 20;
-  const my = params.tab === "custom";
+type UseInfiniteNoticesProps = {
+  tab: string;
+  limit?: number;
+  q?: string;
+  sort?: string;
+  category_ai?: string;
+  source_college?: string;
+  date_range?: string;
+};
 
-  return useInfiniteQuery<PagedResponse<NoticeItem>>({
-    queryKey: ["notices", { tab: params.tab, limit }],
+type BackendResponse = {
+  items: NoticeItem[];
+  total_count: number;
+};
+
+export const useInfiniteNotices = ({
+  tab,
+  limit = 20,
+  q,
+  sort,
+  category_ai,
+  source_college,
+  date_range,
+}: UseInfiniteNoticesProps) => {
+  return useInfiniteQuery<
+    { items: NoticeItem[]; offset: number; totalCount: number },
+    Error,
+    { items: NoticeItem[]; offset: number; totalCount: number },
+    (string | undefined)[],
+    number
+  >({
+    queryKey: ["notices", tab, q, sort, category_ai, source_college, date_range],
+    initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      const qs = new URLSearchParams({
-        sort: "recent",
-        limit: String(limit),
-        offset: String(pageParam),
-        my: String(my),
+      const params = {
+        tab,
+        limit,
+        offset: pageParam,
+        ...(q && { q }),
+        ...(sort && { sort }),
+        ...(category_ai && { category_ai }),
+        ...(source_college && { source_college }),
+        ...(date_range && { date_range }),
+      };
+
+      const { data } = await axios.get<BackendResponse>("/api/notices", {
+        params,
       });
 
-      const res = await fetch(`/api/notices?${qs.toString()}`);
-      if (!res.ok) throw new Error("Failed to load notices");
-
-      return res.json();
+      return {
+        items: data.items,
+        offset: pageParam,
+        totalCount: data.total_count,
+      };
     },
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
-      if (lastPage?.next_offset == null) return undefined;
-      return lastPage.next_offset;
+    getNextPageParam: (lastPage, _allPages) => {
+      const nextOffset = lastPage.offset + limit;
+      return nextOffset < lastPage.totalCount ? nextOffset : undefined;
     },
-    staleTime: 60_000,
   });
-}
+};

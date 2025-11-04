@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Badge } from "../ui/badge";
-
 import { PagedResponse, NoticeItem } from "@/types/notices";
 
 type HiddenMap = Record<string | number, boolean>;
@@ -23,22 +22,17 @@ export default function RecommendedRow() {
     staleTime: 60_000,
   });
 
-  // 사용자가 숨김 처리한 카드 (optimistic 제거)
   const [hidden, setHidden] = useState<HiddenMap>({});
-
-  // 가로 스크롤 ref
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const scrollByCardWidth = useCallback((dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    const amount = dir === "left" ? -(320 + 16) : 320 + 16; // 카드폭 + gap
+    const amount = dir === "left" ? -(320 + 16) : 320 + 16;
     el.scrollBy({ left: amount, behavior: "smooth" });
   }, []);
 
-  // 카드 숨김 & 피드백 전송
   const handleHide = useCallback(async (noticeId: number | string) => {
-    // optimistic update
     setHidden((prev) => ({ ...prev, [noticeId]: true }));
 
     try {
@@ -52,7 +46,6 @@ export default function RecommendedRow() {
         }),
       });
     } catch (err) {
-      // 실패 시 롤백
       setHidden((prev) => {
         const copy = { ...prev };
         delete copy[noticeId];
@@ -60,6 +53,12 @@ export default function RecommendedRow() {
       });
     }
   }, []);
+
+  const allItems = data?.items ?? [];
+  const items = useMemo(
+    () => allItems.filter((it) => !hidden[it.id]),
+    [allItems, hidden]
+  );
 
   if (isLoading) {
     return (
@@ -116,13 +115,6 @@ export default function RecommendedRow() {
     );
   }
 
-  const allItems = data?.items ?? [];
-
-  const items = useMemo(
-    () => allItems.filter((it) => !hidden[it.id]),
-    [allItems, hidden]
-  );
-
   if (items.length === 0) {
     return (
       <section className="mt-4">
@@ -143,7 +135,6 @@ export default function RecommendedRow() {
     );
   }
 
-  // ✅ SuitBadge 개선 (eligible 강조)
   function SuitBadge({ s }: { s?: NoticeItem["suitability"] }) {
     if (s === "eligible") {
       return (
@@ -171,19 +162,15 @@ export default function RecommendedRow() {
 
   return (
     <section className="mt-4" aria-labelledby="reco-title">
-      {/* 헤더 */}
       <div className="mb-2 flex items-center justify-between">
         <h2
           id="reco-title"
           className="text-lg font-semibold text-gray-900 flex items-center gap-2"
         >
           회원님께 추천!
-          {/* 기본 title 속성으로 툴팁 대체 */}
           <span
             className="cursor-help select-none text-[0.7rem] leading-none text-gray-400 hover:text-gray-600"
-            title={
-              "회원님의 학년, 전공, 어학, GPA 등 프로필과 유사한 지원자 패턴을 분석해 매칭된 공고예요. 👍"
-            }
+            title="회원님의 학년, 전공, 어학, GPA 등 프로필과 유사한 지원자 패턴을 분석해 매칭된 공고예요. 👍"
             aria-label="추천 방식 안내"
           >
             ⓘ
@@ -198,9 +185,7 @@ export default function RecommendedRow() {
         </Link>
       </div>
 
-      {/* 가로 스크롤 래퍼 */}
       <div className="relative">
-        {/* 왼쪽 화살표 (데스크탑에서만 표시) */}
         <button
           type="button"
           onClick={() => scrollByCardWidth("left")}
@@ -210,7 +195,6 @@ export default function RecommendedRow() {
           <span className="text-lg leading-none">‹</span>
         </button>
 
-        {/* 오른쪽 화살표 */}
         <button
           type="button"
           onClick={() => scrollByCardWidth("right")}
@@ -220,7 +204,6 @@ export default function RecommendedRow() {
           <span className="text-lg leading-none">›</span>
         </button>
 
-        {/* 리스트 */}
         <div
           ref={scrollRef}
           className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth"
@@ -233,7 +216,6 @@ export default function RecommendedRow() {
               role="listitem"
               className="relative min-w-[320px] snap-start rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
             >
-              {/* 우상단 숨김 버튼 */}
               <button
                 type="button"
                 onClick={() => handleHide(item.id)}
@@ -290,7 +272,6 @@ export default function RecommendedRow() {
                 )}
               </dl>
 
-              {/* "나와 관련 높은 이유" 섹션 */}
               {item.reason && (
                 <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3">
                   <div className="mb-1 flex items-center text-xs font-semibold text-blue-700">
@@ -303,7 +284,6 @@ export default function RecommendedRow() {
                       ⓘ
                     </span>
                   </div>
-
                   <p className="text-[11px] leading-snug text-blue-800 line-clamp-2">
                     {item.reason}
                   </p>
@@ -319,11 +299,6 @@ export default function RecommendedRow() {
   );
 }
 
-/**
- * 경계부 fade overlay
- * 좌우에 흰색→투명 그라디언트를 깔아서
- * '옆으로 더 있다'는 힌트를 줍니다.
- */
 function FadeEdges() {
   return (
     <>
