@@ -13,7 +13,7 @@ export type NoticeItem = {
   source_college?: string;
   posted_at?: string;        // "2025-10-28T02:10:00Z"
   category_ai?: string;      // "#학사", "#장학" 등
-  summary_raw?: string;      // 요약/본문요약
+  ?: string;      // 요약/본문요약
   qualification_ai?: QualificationAI;
 
   // 추천 전용 필드

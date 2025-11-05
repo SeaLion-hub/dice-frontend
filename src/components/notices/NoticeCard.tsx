@@ -18,9 +18,6 @@ import { NoticeItem } from "@/types/notices";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { ko } from "date-fns/locale";
 
-
-
-
 type NoticeCardProps = {
   item: NoticeItem;
   dense?: boolean;
@@ -156,17 +153,7 @@ export function NoticeCard({
           {item.title}
         </Link>
 
-        {/* 요약 (dense 모드에서는 더 작고 살짝 줄간격 타이트) */}
-        {item.summary_raw && !dense && (
-          <p className="mt-1 text-sm text-gray-600 line-clamp-2">
-            {item.summary_raw}
-          </p>
-        )}
-        {item.summary_raw && dense && (
-          <p className="mt-1 text-[12px] leading-snug text-gray-600 line-clamp-1">
-            {item.summary_raw}
-          </p>
-        )}
+        
 
         {/* 하단 액션 row */}
         <div className="mt-3 flex items-center justify-between">

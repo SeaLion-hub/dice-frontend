@@ -1,18 +1,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { NoticeItem } from "@/types/notices"; // 1. 전역 NoticeItem 타입을 임포트
 
-type NoticeItem = {
-  id: string;
-  title: string;
-  source_college: string;
-  created_at: string;
-  hashtags_ai: string[];
-  view_count: number;
-  deadline: string | null;
-  summary_raw?: string;
-  category_ai?: string;
-  read?: boolean;
-};
+// 2. 로컬 NoticeItem 타입 정의 제거
+// type NoticeItem = { ... };
 
 type UseInfiniteNoticesProps = {
   tab: string;
@@ -24,6 +15,7 @@ type UseInfiniteNoticesProps = {
   date_range?: string;
 };
 
+// 3. BackendResponse가 임포트한 NoticeItem을 사용
 type BackendResponse = {
   items: NoticeItem[];
   total_count: number;
@@ -39,6 +31,7 @@ export const useInfiniteNotices = ({
   date_range,
 }: UseInfiniteNoticesProps) => {
   return useInfiniteQuery<
+    // 4. useInfiniteQuery의 제네릭 타입이 임포트한 NoticeItem을 사용
     { items: NoticeItem[]; offset: number; totalCount: number },
     Error,
     { items: NoticeItem[]; offset: number; totalCount: number },
