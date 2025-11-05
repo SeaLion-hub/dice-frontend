@@ -1,14 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useEffect, useCallback } from "react";
+import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import classNames from "classnames";
 import Link from "next/link";
 
-interface NoticeItem {
-  id: string;
-  title: string;
-  // Add other notice properties as needed
-}
+import type { NoticeItem } from "@/types/notices";
 
 import RecommendedRow from "@/components/reco/RecommendedRow";
 import { NoticeCard } from "@/components/notices/NoticeCard";
@@ -29,6 +25,9 @@ function hasToken() {
 }
 
 export default function NoticesPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const {
     tab,
     setTab,
@@ -51,18 +50,20 @@ export default function NoticesPage() {
   } = useInfiniteNotices({
     tab,
     limit: 20,
-    q: searchQuery,
+    searchQuery,
     sort,
-    category_ai: filters.category,
-    source_college: filters.sourceCollege,
-    date_range: filters.dateRange,
+    filters,
   });
+
+  function handleSetTab(nextTab: "custom" | "all") {
+    setTab(nextTab);
+  }
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
-    
+
     const io = new IntersectionObserver((entries) => {
       const first = entries[0];
       if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -76,17 +77,7 @@ export default function NoticesPage() {
 
   const items = useMemo(() => {
     if (!data) return [];
-    // react-query useInfiniteQuery 구조 대응
-    // data.pages[i]가 { items: NoticeItem[] } 형태라고 가정
-    // 아니라면 백엔드 응답에 맞춰 아래 map 부분만 수정
-    // @ts-ignore
-    if (Array.isArray(data.pages)) {
-      // @ts-ignore
-      return data.pages.flatMap((p) => p?.items ?? []);
-    }
-    // fallback
-    // @ts-ignore
-    return data?.items ?? [];
+    return data.pages.flatMap((page) => page?.items ?? []);
   }, [data]);
 
   const handleFilterChange = useCallback(
@@ -140,7 +131,7 @@ export default function NoticesPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
             <button
-              onClick={() => setTab("custom")}
+              onClick={() => handleSetTab("custom")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
                 tab === "custom" ? "bg-gray-100 font-medium" : "text-gray-600"
@@ -149,7 +140,7 @@ export default function NoticesPage() {
               맞춤 공지
             </button>
             <button
-              onClick={() => setTab("all")}
+              onClick={() => handleSetTab("all")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
                 tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
@@ -225,7 +216,7 @@ export default function NoticesPage() {
               <option value="90d">최근 90일</option>
             </select>
 
-            {appliedFilterCount > 0 && (
+            {mounted && appliedFilterCount > 0 && (
               <span className="text-xs text-gray-500">
                 필터 적용 {appliedFilterCount}개
               </span>

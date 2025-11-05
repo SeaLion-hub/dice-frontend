@@ -1,69 +1,84 @@
+// src/hooks/useInfiniteNotices.ts
+
 import { useInfiniteQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { NoticeItem } from "@/types/notices"; // 1. 전역 NoticeItem 타입을 임포트
+import { useCallback } from "react";
 
-// 2. 로컬 NoticeItem 타입 정의 제거
-// type NoticeItem = { ... };
+import { PagedResponse, NoticeItem } from "@/types/notices";
 
-type UseInfiniteNoticesProps = {
-  tab: string;
+type Params = {
+  tab: "custom" | "all";
+  searchQuery: string;
+  sort: string;
+  filters: {
+    category: string;
+    sourceCollege: string;
+    dateRange: string;
+  };
   limit?: number;
-  q?: string;
-  sort?: string;
-  category_ai?: string;
-  source_college?: string;
-  date_range?: string;
 };
 
-// 3. BackendResponse가 임포트한 NoticeItem을 사용
-type BackendResponse = {
-  items: NoticeItem[];
-  total_count: number;
-};
-
-export const useInfiniteNotices = ({
+export function useInfiniteNotices({
   tab,
-  limit = 20,
-  q,
+  searchQuery,
   sort,
-  category_ai,
-  source_college,
-  date_range,
-}: UseInfiniteNoticesProps) => {
-  return useInfiniteQuery<
-    // 4. useInfiniteQuery의 제네릭 타입이 임포트한 NoticeItem을 사용
-    { items: NoticeItem[]; offset: number; totalCount: number },
-    Error,
-    { items: NoticeItem[]; offset: number; totalCount: number },
-    (string | undefined)[],
-    number
-  >({
-    queryKey: ["notices", tab, q, sort, category_ai, source_college, date_range],
-    initialPageParam: 0,
-    queryFn: async ({ pageParam = 0 }) => {
-      const params = {
-        tab,
-        limit,
-        offset: pageParam,
-        ...(q && { q }),
-        ...(sort && { sort }),
-        ...(category_ai && { category_ai }),
-        ...(source_college && { source_college }),
-        ...(date_range && { date_range }),
-      };
+  filters,
+  limit = 20,
+}: Params) {
+  const tokenExists =
+    typeof document !== "undefined" &&
+    document.cookie.includes("DICE_TOKEN");
 
-      const { data } = await axios.get<BackendResponse>("/api/notices", {
-        params,
+  const fetchNotices = useCallback(
+    async ({ pageParam = 0 }): Promise<PagedResponse<NoticeItem>> => {
+      const queryParams = new URLSearchParams();
+
+      queryParams.set("limit", limit.toString());
+      queryParams.set("offset", pageParam.toString());
+      queryParams.set("sort", sort);
+
+      if (searchQuery) {
+        queryParams.set("q", searchQuery);
+      }
+
+      if (filters.category && filters.category !== "all") {
+        queryParams.set("category", filters.category);
+      }
+
+      if (filters.sourceCollege) {
+        queryParams.set("sourceCollege", filters.sourceCollege);
+      }
+
+      if (filters.dateRange && filters.dateRange !== "all") {
+        queryParams.set("dateRange", filters.dateRange);
+      }
+
+      // ✅ 인증 토큰이 있을 때만 my=true 전달
+      if (tab === "custom" && tokenExists) {
+        queryParams.set("my", "true");
+      }
+
+      const res = await fetch(`/api/notices?${queryParams.toString()}`, {
+        credentials: "include", // ✅ 쿠키를 포함해야 인증 작동
       });
-      return {
-        items: data.items,
-        offset: pageParam,
-        totalCount: data.total_count,
-      };
+
+      if (!res.ok) {
+        throw new Error(`API 요청 실패: ${res.status}`);
+      }
+
+      return res.json();
     },
-    getNextPageParam: (lastPage, _allPages) => {
-      const nextOffset = lastPage.offset + limit;
-      return nextOffset < lastPage.totalCount ? nextOffset : undefined;
+    [tab, limit, searchQuery, sort, filters, tokenExists]
+  );
+
+  return useInfiniteQuery({
+    queryKey: ["notices", { tab, searchQuery, sort, filters }],
+    queryFn: fetchNotices,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const nextOffset = allPages.length * limit;
+      return lastPage.items.length === 0 ? undefined : nextOffset;
     },
+    staleTime: 1000 * 60, // 1분 캐시
+    retry: false,
   });
-};
+}
