@@ -111,6 +111,25 @@ export default function NoticesPage() {
 
   const { show: showScrollTop, scrollToTop } = useScrollTopButton();
 
+  const [collegeOptions, setCollegeOptions] = useState<
+    { college_key: string; name: string }[]
+  >([]);
+
+  useEffect(() => {
+    async function fetchColleges() {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE}/colleges`
+        );
+        const data = await res.json();
+        setCollegeOptions(data.items || []);
+      } catch (e) {
+        console.error("Failed to load colleges", e);
+      }
+    }
+    fetchColleges();
+  }, []);
+
   const renderEmptyState = () => (
     <EmptyState message="조건에 맞는 공지가 없어요. 필터를 초기화하고 다시 확인해보세요. 🤔" />
   );
@@ -200,14 +219,18 @@ export default function NoticesPage() {
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
               <option value="">전체 소스</option>
-              <option value="컴공학부">컴공학부</option>
-              <option value="경영대학">경영대학</option>
-              <option value="취업지원팀">취업지원팀</option>
+              {collegeOptions.map((c) => (
+                <option key={c.college_key} value={c.college_key}>
+                  {c.name}
+                </option>
+              ))}
             </select>
 
             <select
               value={filters.dateRange}
-              onChange={(e) => handleFilterChange("dateRange", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("dateRange", e.target.value)
+              }
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
               <option value="all">전체 기간</option>

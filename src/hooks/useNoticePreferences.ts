@@ -1,3 +1,5 @@
+// frontend/src/hooks/useNoticePreferences.ts
+
 "use client";
 
 import { create } from "zustand";

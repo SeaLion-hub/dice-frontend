@@ -1,84 +1,67 @@
-// src/hooks/useInfiniteNotices.ts
-
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { NoticeItem } from "@/types/notices";
 
-import { PagedResponse, NoticeItem } from "@/types/notices";
-
-type Params = {
+interface FetchNoticesOptions {
   tab: "custom" | "all";
-  searchQuery: string;
-  sort: string;
-  filters: {
-    category: string;
-    sourceCollege: string;
-    dateRange: string;
+  limit: number;
+  searchQuery?: string;
+  sort?: string;
+  filters?: {
+    sourceCollege?: string;
+    category?: string;
+    dateRange?: string;
   };
-  limit?: number;
-};
+}
 
 export function useInfiniteNotices({
   tab,
+  limit,
   searchQuery,
-  sort,
-  filters,
-  limit = 20,
-}: Params) {
-  const tokenExists =
-    typeof document !== "undefined" &&
-    document.cookie.includes("DICE_TOKEN");
+  sort = "recent",
+  filters = {},
+}: FetchNoticesOptions) {
+  const fetchNotices = async ({ pageParam = 0 }) => {
+    const params = new URLSearchParams();
+    params.set("offset", pageParam.toString());
+    params.set("limit", limit.toString());
+    params.set("sort", sort);
 
-  const fetchNotices = useCallback(
-    async ({ pageParam = 0 }): Promise<PagedResponse<NoticeItem>> => {
-      const queryParams = new URLSearchParams();
+    if (searchQuery) params.set("q", searchQuery);
+    if (filters.sourceCollege) params.set("college", filters.sourceCollege);
 
-      queryParams.set("limit", limit.toString());
-      queryParams.set("offset", pageParam.toString());
-      queryParams.set("sort", sort);
+    if (filters.dateRange) {
+      const toISO = (date: Date) => date.toISOString().slice(0, 10);
+      const now = Date.now();
 
-      if (searchQuery) {
-        queryParams.set("q", searchQuery);
+      if (filters.dateRange === "7d") {
+        const from = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        params.set("date_from", toISO(from));
+      } else if (filters.dateRange === "30d") {
+        const from = new Date(now - 30 * 24 * 60 * 60 * 1000);
+        params.set("date_from", toISO(from));
+      } else if (filters.dateRange === "90d") {
+        const from = new Date(now - 90 * 24 * 60 * 60 * 1000);
+        params.set("date_from", toISO(from));
       }
+    }
 
-      if (filters.category && filters.category !== "all") {
-        queryParams.set("category", filters.category);
-      }
+    const res = await fetch(`/api/notices?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error("공지 불러오기 실패");
+    }
 
-      if (filters.sourceCollege) {
-        queryParams.set("sourceCollege", filters.sourceCollege);
-      }
-
-      if (filters.dateRange && filters.dateRange !== "all") {
-        queryParams.set("dateRange", filters.dateRange);
-      }
-
-      // ✅ 인증 토큰이 있을 때만 my=true 전달
-      if (tab === "custom" && tokenExists) {
-        queryParams.set("my", "true");
-      }
-
-      const res = await fetch(`/api/notices?${queryParams.toString()}`, {
-        credentials: "include", // ✅ 쿠키를 포함해야 인증 작동
-      });
-
-      if (!res.ok) {
-        throw new Error(`API 요청 실패: ${res.status}`);
-      }
-
-      return res.json();
-    },
-    [tab, limit, searchQuery, sort, filters, tokenExists]
-  );
+    const data = await res.json();
+    return data;
+  };
 
   return useInfiniteQuery({
-    queryKey: ["notices", { tab, searchQuery, sort, filters }],
+    queryKey: ["notices", tab, searchQuery, sort, filters],
     queryFn: fetchNotices,
     initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
-      const nextOffset = allPages.length * limit;
-      return lastPage.items.length === 0 ? undefined : nextOffset;
+    getNextPageParam: (lastPage, _, lastPageParam) => {
+      const returned = lastPage?.meta?.returned ?? 0;
+      const offset = lastPageParam ?? 0;
+      return returned === limit ? offset + limit : undefined;
     },
-    staleTime: 1000 * 60, // 1분 캐시
-    retry: false,
   });
 }
