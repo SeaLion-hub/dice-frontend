@@ -7,14 +7,10 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  _context: { params: { id: string } } // 호환용, 미사용
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // URL에서 /api/notices/{id}/verify 형태의 {id} 추출
-    const { pathname } = new URL(request.url);
-    const segments = pathname.split('/').filter(Boolean); // ['api','notices','{id}','verify']
-    const idx = segments.indexOf('notices');
-    const id = idx >= 0 && segments[idx + 1] ? segments[idx + 1] : undefined;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json({ error: 'Notice id is required' }, { status: 400 });

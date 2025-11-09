@@ -1,7 +1,7 @@
 // src/hooks/useNoticePreferences.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-export type NoticeSort = "recent" | "popular";
+export type NoticeSort = "recent" | "oldest";
 export type DateRange = "" | "1d" | "1w" | "1m" | "all";
 
 export type NoticeFilters = {

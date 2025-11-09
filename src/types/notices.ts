@@ -19,19 +19,24 @@ export interface NoticeItem {
   id: string;
   title: string;
   body: string;
+  body_html?: string;
   raw_text: string;
+  url?: string;                  // 공지 원본 URL
+  college_key?: string;          // 단과대 키 (colleges 테이블 참조)
   status: NoticeStatus;
   createdAt: string;
   updatedAt: string;
   tags?: string[];
   author?: NoticeAuthor;
   qualification_ai: Record<string, any> | null;
+  start_at_ai?: string | null;   // 일정 시작일 (ISO)
+  end_at_ai?: string | null;     // 일정 종료일 (ISO)
 
   // UI 표시 필드
   read: boolean;                 // 읽음 여부
-  hashtags_ai?: string;          // 대분류 (예: "#학사")
+  hashtags_ai?: string[];        // 대분류 배열 (예: ["#학사"])
   detailed_hashtags?: string[];  // 소분류 배열 (예: ["#수강신청"])
-  source_college?: string;       // 출처(단과대/부서 등)
+  source_college?: string;       // 출처(단과대/부서 등) - deprecated: college_key 사용
   posted_at?: string;            // 공지 게시 시각(ISO)
   eligibility?: Eligibility;     // 적합도 점 표시
 }

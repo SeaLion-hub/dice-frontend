@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import classNames from "classnames";
 import type { Notice } from "@/types/notices";
 import RecommendedRow from "@/components/reco/RecommendedRow";
@@ -23,6 +24,7 @@ function hasToken() {
 
 export default function NoticesPage() {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
   useEffect(() => setMounted(true), []);
 
   const {
@@ -110,6 +112,14 @@ export default function NoticesPage() {
     return count;
   }, [filters]);
 
+  // 공지사항 클릭 핸들러 - 상세 페이지로 이동 (부드러운 전환)
+  const handleNoticeClick = useCallback(
+    (id: string) => {
+      router.push(`/notices/${id}`, { scroll: false });
+    },
+    [router]
+  );
+
   const { show: showScrollTop, scrollToTop } = useScrollTopButton();
 
   const [collegeOptions, setCollegeOptions] = useState<
@@ -191,7 +201,7 @@ export default function NoticesPage() {
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
               <option value="recent">최신순</option>
-              <option value="popular">인기순</option>
+              <option value="oldest">과거순</option>
             </select>
 
             <select
@@ -276,7 +286,12 @@ export default function NoticesPage() {
           )}
 
           {items.map((notice: Notice) => (
-            <NoticeCard key={notice.id} item={notice} dense />
+            <NoticeCard
+              key={notice.id}
+              item={notice}
+              dense
+              onClick={handleNoticeClick}
+            />
           ))}
         </section>
       </div>

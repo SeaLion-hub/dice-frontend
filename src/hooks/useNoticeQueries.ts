@@ -33,12 +33,15 @@ export function useNoticeQueries() {
         ...(authHeaders as Record<string, string>),
       };
 
-      // [수정]
-      // 기존 코드는 API_BASE를 사용하지 않아 /api/notices/... 로컬 경로로 요청되었습니다.
-      // 백엔드 서버 주소(API_BASE)를 포함하도록 수정합니다.
-      const url = input.toString().startsWith("http")
-        ? input
-        : `${API_BASE}${input}`;
+      const inputStr = input.toString();
+      
+      // /api/로 시작하는 경로는 Next.js API 라우트이므로 상대 경로로 사용
+      // http로 시작하는 경로는 절대 URL로 사용
+      // 그 외의 경우는 API_BASE를 붙임
+      const url =
+        inputStr.startsWith("http") || inputStr.startsWith("/api/")
+          ? input
+          : `${API_BASE}${input}`;
 
       return fetch(url, { ...init, headers: baseHeaders });
     },
@@ -70,7 +73,8 @@ export function useNoticeDetail(id: string | null) {
 
 // --- 6. [추가] useNoticeEligibility 훅 ---
 // page.tsx에서 import합니다.
-export function useNoticeEligibility(id: string | null) {
+// POST /api/notices/[id]/verify 엔드포인트를 통해 백엔드의 POST /notices/{notice_id}/verify-eligibility 호출
+export function useNoticeEligibility(id: string | null, enabled: boolean = true) {
   const { fetchWithAuth } = useNoticeQueries();
 
   // 위에서 추론한 EligibilityDataType을 반환 타입으로 사용합니다.
@@ -78,13 +82,19 @@ export function useNoticeEligibility(id: string | null) {
     queryKey: ["notice", "eligibility", id],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
-      // 백엔드 엔드포인트 (예: /api/notices/123/eligibility)
-      const res = await fetchWithAuth(`/api/notices/${id}/eligibility`);
+      // POST /api/notices/{id}/verify 엔드포인트 호출
+      const res = await fetchWithAuth(`/api/notices/${id}/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
       if (!res.ok) {
         throw new Error("Failed to fetch notice eligibility");
       }
       return res.json();
     },
-    enabled: !!id, // id가 있을 때만 쿼리 실행
+    enabled: !!id && enabled, // id가 있고 enabled가 true일 때만 쿼리 실행
   });
 }

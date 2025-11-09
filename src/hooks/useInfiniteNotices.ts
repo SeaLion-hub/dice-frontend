@@ -1,5 +1,6 @@
 // src/hooks/useInfiniteNotices.ts
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/stores/useAuthStore";
 import type { NoticeSort, DateRange } from "./useNoticePreferences";
 
 type QueryInput = {
@@ -32,21 +33,23 @@ type ApiResponse = {
   };
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
-
 async function fetchNotices({
   pageParam = 1,
   query,
   pageSize = 20,
+  token,
 }: {
   pageParam?: number;
   query: QueryInput;
   pageSize: number;
+  token?: string | null;
 }) {
   const params = new URLSearchParams();
 
-  params.set("page", String(pageParam));
-  params.set("pageSize", String(pageSize));
+  // 백엔드 API는 offset/limit 형식을 사용
+  const offset = (Number(pageParam) - 1) * pageSize;
+  params.set("offset", String(offset));
+  params.set("limit", String(pageSize));
 
   const { q, sort, my, category, sourceCollege, dateRange } = query;
 
@@ -55,31 +58,60 @@ async function fetchNotices({
   if (my) params.set("my", "true");
   if (sourceCollege) params.set("college", sourceCollege);
 
-  // ✅ 누락되었던 카테고리 파라미터 추가
-  if (category) params.set("category", category);
+  // dateRange를 date_from/date_to로 변환
+  if (dateRange && dateRange !== "all") {
+    const now = new Date();
+    let dateFrom: Date;
+    
+    switch (dateRange) {
+      case "1d":
+        dateFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case "1w":
+        dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "1m":
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    
+    params.set("date_from", dateFrom.toISOString().split("T")[0]);
+  }
 
-  // "all"은 필터 없이 조회하도록 미전송하는 컨벤션
-  if (dateRange && dateRange !== "all") params.set("dateRange", dateRange);
+  // Next.js API 라우트를 통해 호출
+  const url = `/api/notices?${params.toString()}`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  // 인증 토큰이 있으면 추가
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
-  const url = `${API_BASE}/notices?${params.toString()}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     throw new Error(`Failed to fetch notices: ${res.status}`);
   }
-  const json: ApiResponse = await res.json();
+  const json = await res.json();
 
+  // 백엔드 응답 형식: { meta: { limit, offset, returned, total_count? }, items: [] }
   const items = json.items ?? [];
-  const hasNext =
-    json.hasNextPage ??
-    json.pagination?.hasNext ??
-    // nextCursor가 있거나, 아이템 개수가 pageSize와 같으면 다음 페이지가 있을 가능성이 높음
-    (typeof json.nextCursor !== "undefined"
-      ? Boolean(json.nextCursor)
-      : items.length === pageSize);
+  const meta = json.meta ?? {};
+  const totalCount = meta.total_count;
+  const returned = meta.returned ?? items.length;
+  const currentOffset = meta.offset ?? offset;
+  const currentLimit = meta.limit ?? pageSize;
 
-  const nextPage =
-    json.pagination?.nextPage ??
-    (hasNext ? (Number.isFinite(pageParam) ? Number(pageParam) + 1 : undefined) : undefined);
+  // 다음 페이지가 있는지 확인
+  const hasNext = totalCount != null 
+    ? currentOffset + returned < totalCount
+    : returned === currentLimit; // 반환된 아이템 수가 limit와 같으면 다음 페이지가 있을 가능성
+
+  const nextPage = hasNext ? (Number.isFinite(pageParam) ? Number(pageParam) + 1 : undefined) : undefined;
 
   return {
     items,
@@ -89,9 +121,11 @@ async function fetchNotices({
 }
 
 export function useInfiniteNotices({ query, pageSize = 20 }: UseInfiniteNoticesArgs) {
+  const token = useAuthStore((state) => state.token);
+
   return useInfiniteQuery({
-    queryKey: ["notices", query, pageSize],
-    queryFn: ({ pageParam }) => fetchNotices({ pageParam, query, pageSize }),
+    queryKey: ["notices", query, pageSize, token],
+    queryFn: ({ pageParam }) => fetchNotices({ pageParam, query, pageSize, token }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage?.hasNext ? lastPage.nextPage : undefined),
   });

@@ -5,6 +5,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { Calendar, MapPin, Tag } from 'lucide-react';
 import type { NoticeItem } from '@/types/notices';
+import { useColleges } from '@/hooks/useColleges';
 
 type Props = {
   item: NoticeItem;
@@ -29,6 +30,15 @@ function formatDate(iso?: string) {
 }
 
 export default function NoticeCard({ item, dense = false, onClick }: Props) {
+  const { data: colleges } = useColleges();
+  
+  // college_key로 college name 찾기
+  const collegeName = React.useMemo(() => {
+    if (!item.college_key || !colleges) return item.source_college || '-';
+    const college = colleges.find((c) => c.college_key === item.college_key);
+    return college?.name || item.source_college || '-';
+  }, [item.college_key, item.source_college, colleges]);
+
   if (dense) {
     // 12 컬럼 그리드: [제목 5][대분류 2][소분류 2][출처 1][게시일 1][적합도 1]
     return (
@@ -36,7 +46,8 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
         className={clsx(
           'grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-xl',
           'bg-white/70 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800',
-          'hover:bg-white dark:hover:bg-neutral-900 transition-colors'
+          'hover:bg-white dark:hover:bg-neutral-900 transition-colors',
+          'cursor-pointer'
         )}
         role="button"
         onClick={() => onClick?.(item.id)}
@@ -51,8 +62,12 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
 
         {/* 2️⃣ 대분류 (col-span-2) */}
         <div className="col-span-2 flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300 truncate">
-          <Tag className="w-3 h-3" />
-          <span className="truncate">{item.hashtags_ai ?? '-'}</span>
+          <Tag className="w-3 h-3 shrink-0" />
+          <span className="truncate">
+            {Array.isArray(item.hashtags_ai) && item.hashtags_ai.length > 0
+              ? item.hashtags_ai.join(', ')
+              : '-'}
+          </span>
         </div>
 
         {/* 3️⃣ 소분류 (col-span-2) */}
@@ -64,8 +79,8 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
 
         {/* 4️⃣ 출처 (col-span-1) */}
         <div className="col-span-1 flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300 truncate">
-          <MapPin className="w-3 h-3" />
-          <span className="truncate">{item.source_college ?? '-'}</span>
+          <MapPin className="w-3 h-3 shrink-0" />
+          <span className="truncate" title={collegeName}>{collegeName}</span>
         </div>
 
         {/* 5️⃣ 게시일 (col-span-1) */}
@@ -99,7 +114,8 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
       className={clsx(
         'rounded-2xl p-4 border',
         'bg-white/80 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800',
-        'hover:shadow-sm hover:bg-white dark:hover:bg-neutral-900 transition'
+        'hover:shadow-sm hover:bg-white dark:hover:bg-neutral-900 transition',
+        'cursor-pointer'
       )}
       role="button"
       onClick={() => onClick?.(item.id)}
@@ -112,9 +128,9 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
               읽음
             </span>
           )}
-          {item.hashtags_ai && (
+          {Array.isArray(item.hashtags_ai) && item.hashtags_ai.length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-              {item.hashtags_ai}
+              {item.hashtags_ai[0]}
             </span>
           )}
         </div>
@@ -129,7 +145,7 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-600 dark:text-neutral-400">
         <div className="flex items-center gap-1">
           <MapPin className="w-3 h-3" />
-          <span>{item.source_college ?? '출처 미상'}</span>
+          <span>{collegeName}</span>
         </div>
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
