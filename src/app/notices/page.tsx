@@ -1,8 +1,10 @@
+// src/app/notices/page.tsx
 "use client";
 
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import classNames from "classnames";
-import type { NoticeItem } from "@/types/notices";
+import type { Notice } from "@/types/notices";
+import { NoticeSort } from "@/types/notices";
 
 import RecommendedRow from "@/components/reco/RecommendedRow";
 import { NoticeCard } from "@/components/notices/NoticeCard";
@@ -11,10 +13,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import BottomNav from "@/components/nav/BottomNav";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
-import {
-  useNoticePreferences,
-  NoticeSort,
-} from "@/hooks/useNoticePreferences";
+import { useNoticePreferences } from "@/hooks/useNoticePreferences";
 
 function hasToken() {
   if (typeof window === "undefined") return false;
@@ -36,6 +35,23 @@ export default function NoticesPage() {
     setFilters,
   } = useNoticePreferences();
 
+  // ✅ query 객체 생성
+  //  - q: 빈 문자열이면 undefined → URLSearchParams에서 생략
+  //  - my: 'all' 탭이면 undefined → 생략
+  //  - sourceCollege: 백엔드 alias에 맞춤
+  //  - dateRange: 'all'이면 undefined → 생략 (422 방지)
+  const query = useMemo(() => {
+    return {
+      q: searchQuery || undefined,
+      sort: sort, // 기본값은 훅에서 'recent'
+      my: tab === "my" ? true : undefined,
+      category: filters?.category,
+      sourceCollege: filters?.sourceCollege,
+      dateRange:
+        filters?.dateRange === "all" ? undefined : filters?.dateRange,
+    };
+  }, [searchQuery, sort, tab, filters]);
+
   const {
     data,
     fetchNextPage,
@@ -45,14 +61,11 @@ export default function NoticesPage() {
     isError,
     refetch,
   } = useInfiniteNotices({
-    tab,
-    limit: 20,
-    searchQuery,
-    sort,
-    filters,
+    query,
+    pageSize: 20,
   });
 
-  const handleSetTab = (nextTab: "custom" | "all") => setTab(nextTab);
+  const handleSetTab = (nextTab: "my" | "all") => setTab(nextTab);
 
   // infinite scroll
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -94,11 +107,12 @@ export default function NoticesPage() {
     e.preventDefault();
   }, []);
 
+  // ✅ Optional Chaining 적용 (filters가 undefined여도 안전)
   const appliedFilterCount = useMemo(() => {
     let count = 0;
-    if (filters.category) count++;
-    if (filters.sourceCollege) count++;
-    if (filters.dateRange && filters.dateRange !== "all") count++;
+    if (filters?.category) count++;
+    if (filters?.sourceCollege) count++;
+    if (filters?.dateRange && filters?.dateRange !== "all") count++;
     return count;
   }, [filters]);
 
@@ -142,10 +156,10 @@ export default function NoticesPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
             <button
-              onClick={() => handleSetTab("custom")}
+              onClick={() => handleSetTab("my")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
-                tab === "custom" ? "bg-gray-100 font-medium" : "text-gray-600"
+                tab === "my" ? "bg-gray-100 font-medium" : "text-gray-600"
               )}
             >
               맞춤 공지
@@ -182,17 +196,7 @@ export default function NoticesPage() {
             </form>
 
             <select
-              value={sort}
-              onChange={handleSortChange}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
-            >
-              <option value="recent">최신순</option>
-              <option value="deadline">마감 임박순</option>
-              <option value="oldest">오래된 순</option>
-            </select>
-
-            <select
-              value={filters.category}
+              value={filters?.category ?? ''}
               onChange={(e) => handleFilterChange("category", e.target.value)}
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
@@ -204,7 +208,7 @@ export default function NoticesPage() {
             </select>
 
             <select
-              value={filters.sourceCollege}
+              value={filters?.sourceCollege ?? ''}
               onChange={(e) =>
                 handleFilterChange("sourceCollege", e.target.value)
               }
@@ -219,14 +223,14 @@ export default function NoticesPage() {
             </select>
 
             <select
-              value={filters.dateRange}
+              value={filters?.dateRange ?? 'all'}
               onChange={(e) => handleFilterChange("dateRange", e.target.value)}
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
               <option value="all">전체 기간</option>
-              <option value="7d">최근 7일</option>
-              <option value="30d">최근 30일</option>
-              <option value="90d">최근 90일</option>
+              <option value="1d">최근 1일</option>
+              <option value="1w">최근 1주</option>
+              <option value="1m">최근 1달</option>
             </select>
 
             {mounted && appliedFilterCount > 0 && (
@@ -238,7 +242,7 @@ export default function NoticesPage() {
         </div>
       </div>
 
-      {tab === "custom" && hasToken() && <RecommendedRow />}
+      {tab === "my" && hasToken() && <RecommendedRow />}
 
       {/* ====== 리스트 컨테이너 ====== */}
       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -273,12 +277,11 @@ export default function NoticesPage() {
             <div className="p-6">{renderEmptyState()}</div>
           )}
 
-          {items.map((notice: NoticeItem) => (
+          {items.map((notice: Notice) => (
             <NoticeCard
               key={notice.id}
               item={notice}
               dense
-              // 필요 시 onToggleRead/onSaveForLater/onHide/onToggleBookmark 전달 가능
             />
           ))}
         </section>

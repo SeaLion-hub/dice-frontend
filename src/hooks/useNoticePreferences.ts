@@ -1,130 +1,87 @@
-// frontend/src/hooks/useNoticePreferences.ts
+// src/hooks/useNoticePreferences.ts
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type {
+  NoticeTab,
+  NoticeSort,      // 'recent' | 'oldest'
+  NoticeFilters,
+} from '@/types/notices';
 
-"use client";
-
-import { create } from "zustand";
-
-export type NoticeTab = "custom" | "all";
-export type NoticeSort = "recent" | "deadline" | "oldest";
-
-export interface NoticeFilters {
-  // hashtags_ai / category_ai 기반
-  category: string;
-  sourceCollege: string;
-  // e.g. "7d", "30d", "all"
-  dateRange: string;
+function parseCookie(name: string) {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split('=')[1]) : null;
 }
 
-interface NoticePreferencesState {
-  // state
-  tab: NoticeTab;
-  searchQuery: string;
-  sort: NoticeSort;
-  filters: NoticeFilters;
-
-  // actions
-  setTab: (tab: NoticeTab) => void;
-  setSearchQuery: (q: string) => void;
-  setSort: (s: NoticeSort) => void;
-  setFilters: (f: Partial<NoticeFilters>) => void;
-  reset: () => void;
+function writeCookie(name: string, value: string, maxAgeSec = 60 * 60 * 24 * 7) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAgeSec}; SameSite=Lax`;
 }
 
-const LS_KEY = "notice_prefs_v1";
+export function useNoticePreferences() {
+  // ===== 토큰 상태 =====
+  const [token, setTokenState] = useState<string | null>(null);
 
-const defaultState: Pick<NoticePreferencesState, "tab" | "searchQuery" | "sort" | "filters"> = {
-  tab: "custom",
-  searchQuery: "",
-  sort: "recent",
-  filters: {
-    category: "all",
-    sourceCollege: "all",
-    dateRange: "30d",
-  },
-};
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-function safeParse<T>(raw: string | null): T | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-
-type PersistShape = {
-  tab: NoticeTab;
-  searchQuery: string;
-  sort: NoticeSort;
-  filters: NoticeFilters;
-};
-
-export const useNoticePreferences = create<NoticePreferencesState>((set, get) => {
-  // 1) 초기화: LocalStorage에서 가져오기 (클라이언트에서만)
-  let initFromStorage: Partial<PersistShape> = {};
-  if (typeof window !== "undefined") {
-    const parsed = safeParse<PersistShape>(window.localStorage.getItem(LS_KEY));
-    if (parsed) {
-      initFromStorage = parsed;
+    const fromLS = window.localStorage.getItem('authToken');
+    if (fromLS) {
+      setTokenState(fromLS);
+      return;
     }
-  }
-
-  // 2) 내부 persist 함수
-  function persist() {
-    if (typeof window === "undefined") return;
-    const { tab, searchQuery, sort, filters } = get();
-    try {
-      window.localStorage.setItem(
-        LS_KEY,
-        JSON.stringify({ tab, searchQuery, sort, filters })
-      );
-    } catch {
-      // ignore storage errors
+    const fromCookie = parseCookie('auth_token');
+    if (fromCookie) {
+      setTokenState(fromCookie);
     }
-  }
+  }, []);
 
-  // 3) 액션 구현
-  const actions = {
-    setTab: (tab: NoticeTab) => set(() => {
-      const next = { tab };
-      // 바로 저장
-      const merged = { ...get(), ...next };
-      // set 이후 저장을 위해 set 콜백 바깥에서 persist 호출
-      // 하지만 여기선 set 동기적 적용 후 persist 호출
-      queueMicrotask(persist);
-      return next;
-    }),
+  const setToken = useCallback((next: string | null) => {
+    if (typeof window === 'undefined') return;
+    if (next) {
+      window.localStorage.setItem('authToken', next);
+      writeCookie('auth_token', next);
+      setTokenState(next);
+    } else {
+      window.localStorage.removeItem('authToken');
+      writeCookie('auth_token', '', -1);
+      setTokenState(null);
+    }
+  }, []);
 
-    setSearchQuery: (q: string) => set(() => {
-      const next = { searchQuery: q };
-      queueMicrotask(persist);
-      return next;
-    }),
+  const hasToken = useMemo(() => !!token, [token]);
 
-    setSort: (s: NoticeSort) => set(() => {
-      const next = { sort: s };
-      queueMicrotask(persist);
-      return next;
-    }),
+  // ===== 공지 목록 페이지 상태 =====
+  const [tab, setTab] = useState<NoticeTab>('all');            // 'all' | 'my'
+  const [searchQuery, setSearchQuery] = useState<string>('');   // 검색어
 
-    setFilters: (f: Partial<NoticeFilters>) => set((state) => {
-      const nextFilters = { ...state.filters, ...f };
-      queueMicrotask(persist);
-      return { filters: nextFilters };
-    }),
+  // [변경] 기본 정렬: 'recent'
+  const [sort, setSort] = useState<NoticeSort>('recent');       // 'recent' | 'oldest'
 
-    reset: () => set(() => {
-      queueMicrotask(persist);
-      return { ...defaultState };
-    }),
-  } satisfies Omit<NoticePreferencesState, "tab" | "searchQuery" | "sort" | "filters">;
+  // 필터 상태 (머지 가능한 setter 제공)
+  const [filtersState, setFiltersState] = useState<NoticeFilters>({});
+  const setFilters = useCallback(
+    (patch: Partial<NoticeFilters>) => {
+      setFiltersState((prev) => ({ ...prev, ...patch }));
+    },
+    []
+  );
 
-  // 4) 초기 상태 + 액션 반환
-  const initial: NoticePreferencesState = {
-    ...defaultState,
-    ...initFromStorage,
-    ...actions,
+  return {
+    // 토큰
+    token,
+    setToken,
+    hasToken,
+
+    // 공지 페이지 상태
+    tab,
+    setTab,
+    searchQuery,
+    setSearchQuery,
+    sort,
+    setSort,
+    filters: filtersState,
+    setFilters,
   };
-
-  return initial;
-});
+}

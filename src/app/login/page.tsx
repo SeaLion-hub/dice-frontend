@@ -1,25 +1,27 @@
+// src/app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useNoticePreferences } from "@/hooks/useNoticePreferences";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+// 환경 변수에서 API 베이스를 읽습니다.
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
-type LoginInputs = {
-  email: string;
-  password: string;
-};
+type LoginInputs = { email: string; password: string };
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setToken } = useNoticePreferences();
   const [form, setForm] = useState<LoginInputs>({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const safeJson = async (res: Response) => {
     try {
-      const text = await res.text();
-      return JSON.parse(text);
+      const t = await res.text();
+      return JSON.parse(t);
     } catch {
       return null;
     }
@@ -31,34 +33,58 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
+      // ✅ JSON 형식으로 복구 (email/password)
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
       });
 
       if (!res.ok) {
         const data = await safeJson(res);
-        const detail =
-          (data && (data.detail || data.message)) ??
-          "로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.";
+
+        // 사람이 읽을 수 있는 에러 메시지 구성
+        const errorContent = data && (data.detail || data.message || data.error);
+        let detail: string;
+
+        if (typeof errorContent === "string") {
+          // 1) 문자열 메시지
+          detail = errorContent;
+        } else if (errorContent) {
+          // 2) 객체/배열인 경우 직렬화
+          try {
+            detail = JSON.stringify(errorContent);
+          } catch {
+            detail = "로그인에 실패했습니다.";
+          }
+        } else {
+          // 3) 본문 없이 상태코드만 온 경우
+          detail = `로그인 실패 (${res.status})`;
+        }
+
         throw new Error(detail);
       }
 
       const data = await res.json();
-      const accessToken = data.access_token;
+      const accessToken: string | undefined =
+        data?.access_token || data?.token || data?.accessToken;
 
       if (!accessToken) {
         throw new Error("서버에서 access_token을 받지 못했습니다.");
       }
 
-      localStorage.setItem("DICE_TOKEN", accessToken);
+      // 토큰 저장 (훅에서 localStorage/cookie 처리)
+      setToken(accessToken);
+
       router.replace("/notices");
     } catch (err: any) {
       console.error("login error:", err);
-      setErrorMsg(err.message ?? "알 수 없는 오류가 발생했습니다.");
+      setErrorMsg(err?.message ?? "알 수 없는 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
