@@ -3,6 +3,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { api } from '@/lib/api';
 import type { NoticeEligibilityResult } from '@/types/notices';
 
+type UserProfileResponse = {
+  gender?: string | null;
+  age?: number | null;
+  major?: string | null;
+  grade?: number | null;
+  keywords?: string[] | null;
+  military_service?: string | null;
+  income_bracket?: number | null;
+  gpa?: number | null;
+  language_scores?: Record<string, number | string> | null;
+};
+
+function mapProfileForVerification(profile: UserProfileResponse | null) {
+  if (!profile) return null;
+  return {
+    gender: profile.gender ?? null,
+    age: profile.age ?? null,
+    major: profile.major ?? null,
+    grade: profile.grade ?? null,
+    keywords: profile.keywords ?? [],
+    military_service: profile.military_service ?? null,
+    income_bracket: profile.income_bracket ?? null,
+    gpa: profile.gpa ?? null,
+    language_scores: profile.language_scores ?? {},
+  } as Record<string, unknown>;
+}
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(
@@ -24,11 +51,39 @@ export async function POST(
       );
     }
 
-    // 백엔드에도 POST로 위임 (빈 바디)
-    // 백엔드 응답(eligible:boolean, reason?:string)을 프론트 타입으로 매핑
+    // 사용자 프로필을 불러와 자격 검증에 전달
+    let verificationProfile: Record<string, unknown> | null = null;
+    try {
+      const profileRes = await api.get<UserProfileResponse>(`/auth/me/profile`, {
+        headers: { Authorization: authToken },
+      });
+      verificationProfile = mapProfileForVerification(profileRes.data ?? null);
+    } catch (profileError: any) {
+      const status = profileError?.response?.status;
+      if (status === 404) {
+        return NextResponse.json(
+          { error: '프로필이 없습니다. 설정에서 정보를 입력한 뒤 다시 시도해 주세요.' },
+          { status: 422 }
+        );
+      }
+      console.error('[DICE BFF ERROR] Failed to load profile for eligibility', {
+        status,
+        data: JSON.stringify(profileError?.response?.data, null, 2),
+      });
+      throw profileError;
+    }
+
+    if (!verificationProfile) {
+      return NextResponse.json(
+        { error: '자격 검증을 위해 프로필 정보가 필요합니다.' },
+        { status: 422 }
+      );
+    }
+
+    // 백엔드에도 POST로 위임
     const res = await api.post(
       `/notices/${encodeURIComponent(id)}/verify-eligibility`,
-      {},
+      verificationProfile,
       { headers: { Authorization: authToken } }
     );
 

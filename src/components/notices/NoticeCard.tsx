@@ -3,9 +3,11 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { Calendar, MapPin, Tag } from 'lucide-react';
+import { MapPin, Tag } from 'lucide-react';
 import type { NoticeItem } from '@/types/notices';
 import { useColleges } from '@/hooks/useColleges';
+import { useNoticeEligibility } from '@/hooks/useNoticeQueries';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 type Props = {
   item: NoticeItem;
@@ -13,38 +15,85 @@ type Props = {
   onClick?: (id: string) => void;
 };
 
-function formatDate(iso?: string) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    // 로컬 시간대 기준 YYYY-MM-DD HH:mm
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-  } catch {
-    return iso;
-  }
-}
+const INDICATOR_LABELS: Record<NonNullable<NoticeItem['eligibility']>, string> = {
+  ELIGIBLE: '적합',
+  BORDERLINE: '부분 적합',
+  INELIGIBLE: '부적합',
+};
 
 export default function NoticeCard({ item, dense = false, onClick }: Props) {
   const { data: colleges } = useColleges();
-  
+  const token = useAuthStore((s) => s.token);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const [hasIntersected, setHasIntersected] = React.useState(false);
+
+  React.useEffect(() => {
+    if (hasIntersected) return;
+    const el = rootRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setHasIntersected(true);
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: '120px 0px 120px 0px', threshold: 0.1 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasIntersected]);
+
+  const noticeId = item?.id ? String(item.id) : null;
+  const hasQualificationData = Boolean(item?.qualification_ai ?? (item as any)?.qualificationAi);
+  const shouldFetchEligibility = Boolean(
+    token && noticeId && hasQualificationData && hasIntersected
+  );
+
+  const {
+    data: eligibilityData,
+  } = useNoticeEligibility(noticeId, shouldFetchEligibility);
+
+  const effectiveEligibility = eligibilityData?.eligibility ?? item.eligibility ?? null;
+
   // college_key로 college name 찾기
   const collegeName = React.useMemo(() => {
     if (!item.college_key || !colleges) return item.source_college || '-';
     const college = colleges.find((c) => c.college_key === item.college_key);
     return college?.name || item.source_college || '-';
   }, [item.college_key, item.source_college, colleges]);
+  const eligibilityVisual = React.useMemo(() => getEligibilityVisual(effectiveEligibility), [effectiveEligibility]);
 
-  const eligibilityMeta = React.useMemo(() => getEligibilityMeta(item.eligibility), [item.eligibility]);
+  const renderEligibilityIndicator = (size: 'sm' | 'md') => {
+    const outerSize = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
+    const innerSize = size === 'sm' ? 'h-2 w-2' : 'h-3 w-3';
+    const label = eligibilityVisual.label;
+
+    return (
+      <span
+        className={clsx(
+          'inline-flex items-center justify-center rounded-full border',
+          eligibilityVisual.borderClass,
+          eligibilityVisual.outerBgClass,
+          outerSize
+        )}
+        title={label}
+        aria-label={`자격 판정: ${label}`}
+      >
+        <span className={clsx('block rounded-full', eligibilityVisual.fillClass, innerSize)} aria-hidden />
+      </span>
+    );
+  };
 
   if (dense) {
     // 12 컬럼 그리드: [제목 5][대분류 2][소분류 2][출처 1][게시일 1][적합도 1]
     return (
       <div
+        ref={rootRef}
         className={clsx(
           'grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-xl',
           'bg-white/70 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800',
@@ -55,21 +104,9 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
         onClick={() => onClick?.(item.id)}
       >
         {/* 1️⃣ 제목 (col-span-5) */}
-        <div className="col-span-5 flex min-w-0 items-center gap-2">
+        <div className="col-span-6 flex min-w-0 items-center gap-2">
           <div className="min-w-0 truncate text-sm font-medium">{item.title}</div>
-          {eligibilityMeta && (
-            <span
-              className={clsx(
-                'flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                eligibilityMeta.badgeClass
-              )}
-            >
-              {eligibilityMeta.label}
-            </span>
-          )}
-          {item.read && (
-            <span className="text-[10px] text-neutral-400">읽음</span>
-          )}
+          {item.read && <span className="text-[10px] text-neutral-400">읽음</span>}
         </div>
 
         {/* 2️⃣ 대분류 (col-span-2) */}
@@ -95,22 +132,9 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
           <span className="truncate" title={collegeName}>{collegeName}</span>
         </div>
 
-        {/* 5️⃣ 게시일 (col-span-1) */}
-        <div className="col-span-1 flex items-center gap-1 text-[11px] text-neutral-500 truncate">
-          <Calendar className="w-3 h-3" />
-          <span className="truncate">{formatDate(item.posted_at) || '-'}</span>
-        </div>
-
-        {/* 6️⃣ 적합도 (col-span-1) - 작업 3 교체 블록 */}
-        <div className="relative col-span-1 flex justify-center items-center">
-          {eligibilityMeta ? (
-            <span
-              className={clsx('h-3 w-3 rounded-full', eligibilityMeta.dotClass)}
-              title={eligibilityMeta.label}
-            />
-          ) : (
-            <span className="h-3 w-3 rounded-full bg-gray-200" title="미판단" />
-          )}
+        {/* 5️⃣ 자격 결과 (col-span-1) */}
+        <div className="col-span-1 flex items-center justify-center">
+          {renderEligibilityIndicator('sm')}
         </div>
       </div>
     );
@@ -119,6 +143,7 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
   // 카드 모드(기본)
   return (
     <div
+      ref={rootRef}
       className={clsx(
         'rounded-2xl p-4 border',
         'bg-white/80 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800',
@@ -132,16 +157,6 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex min-w-0 items-center gap-2">
             <h3 className="min-w-0 truncate text-base font-semibold leading-snug">{item.title}</h3>
-            {eligibilityMeta && (
-              <span
-                className={clsx(
-                  'flex-shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                  eligibilityMeta.badgeClass
-                )}
-              >
-                {eligibilityMeta.label}
-              </span>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -169,60 +184,47 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
           <MapPin className="w-3 h-3" />
           <span>{collegeName}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Calendar className="w-3 h-3" />
-          <span>{formatDate(item.posted_at) || '게시일 미상'}</span>
-        </div>
         {Array.isArray(item.detailed_hashtags) && item.detailed_hashtags.length > 0 && (
           <div className="flex items-center gap-1">
             <Tag className="w-3 h-3" />
             <span>{item.detailed_hashtags.join(', ')}</span>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-2">
-          {eligibilityMeta ? (
-            <span
-              className={clsx(
-                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold',
-                eligibilityMeta.badgeClass
-              )}
-            >
-              <span className={clsx('h-2.5 w-2.5 rounded-full', eligibilityMeta.dotClass)} />
-              {eligibilityMeta.label}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-              <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-              미판단
-            </span>
-          )}
-        </div>
+        <div className="ml-auto flex items-center gap-2">{renderEligibilityIndicator('md')}</div>
       </div>
     </div>
   );
 }
 
-function getEligibilityMeta(status: NoticeItem['eligibility']) {
+function getEligibilityVisual(status: NoticeItem['eligibility']) {
   switch (status) {
     case 'ELIGIBLE':
       return {
-        label: '적합',
-        badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        dotClass: 'bg-emerald-500',
+        label: INDICATOR_LABELS.ELIGIBLE,
+        fillClass: 'bg-emerald-500',
+        borderClass: 'border-emerald-200',
+        outerBgClass: 'bg-emerald-50',
       };
     case 'BORDERLINE':
       return {
-        label: '부분 적합',
-        badgeClass: 'border-amber-200 bg-amber-50 text-amber-700',
-        dotClass: 'bg-amber-500',
+        label: INDICATOR_LABELS.BORDERLINE,
+        fillClass: 'bg-amber-500',
+        borderClass: 'border-amber-200',
+        outerBgClass: 'bg-amber-50',
       };
     case 'INELIGIBLE':
       return {
-        label: '부적합',
-        badgeClass: 'border-red-200 bg-red-50 text-red-700',
-        dotClass: 'bg-red-500',
+        label: INDICATOR_LABELS.INELIGIBLE,
+        fillClass: 'bg-red-500',
+        borderClass: 'border-red-200',
+        outerBgClass: 'bg-red-50',
       };
     default:
-      return null;
+      return {
+        label: '미판단',
+        fillClass: 'bg-white',
+        borderClass: 'border-gray-300',
+        outerBgClass: 'bg-white',
+      };
   }
 }

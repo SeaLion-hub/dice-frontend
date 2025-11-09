@@ -99,7 +99,19 @@ async function fetchNotices({
   const json = await res.json();
 
   // 백엔드 응답 형식: { meta: { limit, offset, returned, total_count? }, items: [] }
-  const items = json.items ?? [];
+  const rawItems = json.items ?? [];
+  const items = rawItems.map((item: any) => ({
+    ...item,
+    posted_at:
+      item?.posted_at ??
+      item?.postedAt ??
+      item?.published_at ??
+      item?.publishedAt ??
+      item?.created_at ??
+      item?.createdAt ??
+      null,
+    qualification_ai: item?.qualification_ai ?? item?.qualificationAi ?? null,
+  }));
   const meta = json.meta ?? {};
   const totalCount = meta.total_count;
   const returned = meta.returned ?? items.length;

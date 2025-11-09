@@ -257,12 +257,11 @@ export default function NoticesPage() {
       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
         {/* 헤더 */}
         <div className="hidden border-b border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
-          <div className="col-span-5">제목</div>
+          <div className="col-span-6">제목</div>
           <div className="col-span-2">대분류</div>
           <div className="col-span-2">소분류</div>
           <div className="col-span-1">출처</div>
-          <div className="col-span-1 text-right">등록일</div>
-          <div className="col-span-1 text-center">관리</div>
+          <div className="col-span-1 text-center">자격</div>
         </div>
 
         {/* 바디 */}
