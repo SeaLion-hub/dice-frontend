@@ -54,10 +54,11 @@ export function useNoticeQueries() {
 // --- 5. [추가] useNoticeDetail 훅 ---
 // page.tsx에서 import합니다.
 export function useNoticeDetail(id: string | null) {
-  const { fetchWithAuth } = useNoticeQueries();
+  const { fetchWithAuth, token } = useNoticeQueries();
 
   return useQuery<Notice>({
-    queryKey: ["notice", "detail", id],
+    // 토큰 포함: 사용자별(권한 차이) 캐시 분리
+    queryKey: ["notice", "detail", id, token],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
       // 백엔드 엔드포인트 (예: /api/notices/123)
@@ -75,11 +76,12 @@ export function useNoticeDetail(id: string | null) {
 // page.tsx에서 import합니다.
 // POST /api/notices/[id]/verify 엔드포인트를 통해 백엔드의 POST /notices/{notice_id}/verify-eligibility 호출
 export function useNoticeEligibility(id: string | null, enabled: boolean = true) {
-  const { fetchWithAuth } = useNoticeQueries();
+  const { fetchWithAuth, token } = useNoticeQueries();
 
   // 위에서 추론한 EligibilityDataType을 반환 타입으로 사용합니다.
   return useQuery<EligibilityDataType>({
-    queryKey: ["notice", "eligibility", id],
+    // 토큰 포함: 사용자별 캐시 분리
+    queryKey: ["notice", "eligibility", id, token],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
       // POST /api/notices/{id}/verify 엔드포인트 호출

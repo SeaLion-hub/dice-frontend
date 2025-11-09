@@ -302,19 +302,43 @@ function RegisterInner() {
       } catch {}
 
       if (!profileRes.ok) {
-        console.error("Profile update failed:", respJson || respText);
+        // Avoid noisy error overlay; only warn in dev
+        if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
+          console.warn("Profile update failed:", respJson ?? respText);
+        }
+
+        // Build a robust, human-friendly message from various backend shapes
         let detailMsg = "프로필 저장에 실패했습니다.";
-        const d = respJson;
-        if (d?.detail) {
-          if (typeof d.detail === "string") detailMsg = d.detail;
-          else if (Array.isArray(d.detail)) {
-            const firstError = d.detail[0];
-            const fieldName =
-              firstError?.loc?.[firstError.loc.length - 1] ?? "필드";
-            const reason = firstError?.msg ?? "유효하지 않은 값";
+        const d: any = respJson;
+        const detail = d?.detail ?? d?.message ?? d?.error ?? d?.errors;
+
+        if (detail) {
+          if (typeof detail === "string") {
+            detailMsg = detail;
+          } else if (Array.isArray(detail) && detail.length > 0) {
+            const first = detail[0] ?? {};
+            const loc = Array.isArray(first?.loc) ? first.loc : [];
+            const fieldName = loc.length > 0 ? String(loc[loc.length - 1]) : (first?.field ?? "필드");
+            const reason = first?.msg ?? first?.message ?? (typeof first === "string" ? first : JSON.stringify(first));
             detailMsg = `입력 오류 (${fieldName}): ${reason}`;
+          } else if (typeof detail === "object") {
+            // Pydantic v2 single error object or a field->messages map
+            if (detail?.msg || detail?.message) {
+              const loc = Array.isArray(detail?.loc) ? detail.loc : [];
+              const fieldName = loc.length > 0 ? String(loc[loc.length - 1]) : "필드";
+              const reason = detail?.msg ?? detail?.message;
+              detailMsg = `입력 오류 (${fieldName}): ${reason}`;
+            } else {
+              const entries = Object.entries(detail as Record<string, unknown>);
+              if (entries.length > 0) {
+                const [key, val] = entries[0];
+                const reason = Array.isArray(val) ? String(val[0]) : String(val);
+                detailMsg = `입력 오류 (${key}): ${reason}`;
+              }
+            }
           }
         }
+
         throw new Error(detailMsg);
       }
 

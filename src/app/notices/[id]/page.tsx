@@ -25,9 +25,8 @@ export default function NoticeDetailPage() {
     refetch: refetchDetail,
   } = useNoticeDetail(id);
 
-  // qualification_ai가 있을 때만 eligibility 데이터 조회
-  // noticeData가 로드되고 qualification_ai가 있을 때만 조회
-  const shouldFetchEligibility = !!id && !!noticeData?.qualification_ai;
+  // 자격 분석은 공지별로 언제든 재시도 가능하도록 id만 있으면 조회
+  const shouldFetchEligibility = !!id;
   const {
     data: eligibilityData,
     isLoading: isEligibilityLoading,
@@ -116,24 +115,22 @@ export default function NoticeDetailPage() {
         )}
       </section>
 
-      {/* 자격 분석 결과 카드 (qualification_ai가 있을 때만 렌더링) */}
-      {noticeData?.qualification_ai && (
-        <section className="mb-8">
-          {isEligibilityError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              자격 분석 결과를 불러오지 못했습니다.{" "}
-              <button className="underline" onClick={() => refetchEligibility()}>
-                다시 시도
-              </button>
-            </div>
-          ) : (
-            <EligibilityResult
-              data={eligibilityData}
-              isLoading={isEligibilityLoading}
-            />
-          )}
-        </section>
-      )}
+      {/* 자격 분석 결과 카드 */}
+      <section className="mb-8">
+        {isEligibilityError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            자격 분석 결과를 불러오지 못했습니다.{" "}
+            <button className="underline" onClick={() => refetchEligibility()}>
+              다시 시도
+            </button>
+          </div>
+        ) : (
+          <EligibilityResult
+            data={eligibilityData}
+            isLoading={isEligibilityLoading}
+          />
+        )}
+      </section>
     </main>
   );
 }

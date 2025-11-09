@@ -110,7 +110,8 @@ export default function ProfilePage() {
   const {
     data: userMe,
   } = useQuery<UserMe>({
-    queryKey: ["user", "me"],
+    // Include token so switching accounts refetches instead of reusing cache
+    queryKey: ["user", "me", token],
     queryFn: async () => {
       const res = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
@@ -125,7 +126,8 @@ export default function ProfilePage() {
     data: profile,
     isLoading: isProfileLoading,
   } = useQuery<UserProfile | null>({
-    queryKey: ["user", "profile"],
+    // Include token to avoid showing another account's cached profile
+    queryKey: ["user", "profile", token],
     queryFn: async () => {
       const res = await fetch("/api/auth/me/profile", {
         headers: { Authorization: `Bearer ${token}` },
@@ -263,6 +265,10 @@ export default function ProfilePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", "profile"] });
+      // Refresh personalized and related caches after profile change
+      queryClient.invalidateQueries({ queryKey: ["recommended"] });
+      queryClient.invalidateQueries({ queryKey: ["notice", "eligibility"] });
+      queryClient.invalidateQueries({ queryKey: ["notices"] });
       alert("프로필이 업데이트되었습니다.");
     },
     onError: (error: Error) => {

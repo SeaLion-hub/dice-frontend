@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import classNames from "classnames";
 import type { Notice } from "@/types/notices";
 import RecommendedRow from "@/components/reco/RecommendedRow";
+import { useAuthStore } from "@/stores/useAuthStore";
 import NoticeCard from "@/components/notices/NoticeCard";
 import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -17,15 +18,14 @@ import {
   type NoticeSort, // ✅ 타입으로 명시
 } from "@/hooks/useNoticePreferences";
 
-function hasToken() {
-  if (typeof window === "undefined") return false;
-  return !!localStorage.getItem("access_token");
-}
+// store 기반 인증 여부 사용
 
 export default function NoticesPage() {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   useEffect(() => setMounted(true), []);
+  const token = useAuthStore((s) => s.token);
+  const isAuthed = !!token;
 
   const {
     tab,
@@ -42,7 +42,8 @@ export default function NoticesPage() {
     return {
       q: searchQuery || undefined,
       sort: sort,
-      my: tab === "my" ? true : undefined,
+      // 로그인 상태에서만 my=true를 붙여 401 방지
+      my: tab === "my" && isAuthed ? true : undefined,
       category: filters?.category,
       sourceCollege: filters?.sourceCollege,
       dateRange: filters?.dateRange === "all" ? undefined : filters?.dateRange,
@@ -159,7 +160,8 @@ export default function NoticesPage() {
               onClick={() => handleSetTab("my")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
-                tab === "my" ? "bg-gray-100 font-medium" : "text-gray-600"
+                // Hydration 안전: 초기 SSR에선 중립 스타일, 클라이언트 마운트 후 활성화 표시
+                mounted && tab === "my" ? "bg-gray-100 font-medium" : "text-gray-600"
               )}
             >
               맞춤 공지
@@ -168,7 +170,7 @@ export default function NoticesPage() {
               onClick={() => handleSetTab("all")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
-                tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
+                mounted && tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
               )}
             >
               전체 공지
@@ -249,7 +251,7 @@ export default function NoticesPage() {
         </div>
       </div>
 
-      {tab === "my" && hasToken() && <RecommendedRow />}
+      {tab === "my" && isAuthed && <RecommendedRow />}
 
       {/* ====== 리스트 컨테이너 ====== */}
       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">

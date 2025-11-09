@@ -5,38 +5,29 @@ import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Badge } from "../ui/badge";
 import { PagedResponse, NoticeItem } from "@/types/notices";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
-function getToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
-}
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function RecommendedRow() {
-  const token = getToken();
+  const token = useAuthStore((s) => s.token);
   const isAuthed = !!token;
 
   const { data, isLoading, isError, refetch } = useQuery<
     PagedResponse<NoticeItem>
   >({
-    queryKey: ["recommended"],
+    // 사용자별 캐시 분리를 위해 token 포함
+    queryKey: ["recommended", token],
     queryFn: async () => {
-      if (!API_URL) throw new Error("API_URL is not set");
-      const url = new URL("/notices/recommended", API_URL);
-      url.searchParams.set("limit", "10");
-      url.searchParams.set("offset", "0");
+      // BFF 경유: 현재 사용자 기준 맞춤 공지 (my=true)
+      const url = `/api/notices?limit=10&offset=0&my=true`;
 
-      const r = await fetch(url.toString(), {
+      const r = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
+        credentials: "same-origin",
       });
-      if (r.status === 401) {
-        throw new Error("unauthorized");
-      }
+      if (r.status === 401) throw new Error("unauthorized");
       if (!r.ok) throw new Error("failed");
       return r.json();
     },
@@ -57,14 +48,14 @@ export default function RecommendedRow() {
   const handleHide = useCallback(async (noticeId: number | string) => {
     setHidden((prev) => ({ ...prev, [noticeId]: true }));
     try {
-      // 선택사항: 피드백 API에도 토큰 필요하다면 헤더 추가
-      await fetch(`${API_URL}/notices/feedback`, {
+      // 선택사항: 피드백 API (있다면 BFF 경유 경로로 호출)
+      await fetch(`/api/notices/feedback`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
+        credentials: "same-origin",
         body: JSON.stringify({ noticeId, action: "hide", ts: Date.now() }),
       });
     } catch {
@@ -75,6 +66,10 @@ export default function RecommendedRow() {
       });
     }
   }, [token]);
+
+  // Hooks must run on every render. Compute list before any early returns.
+  const allItems = data?.items ?? [];
+  const items = useMemo(() => allItems.filter((it) => !hidden[it.id]), [allItems, hidden]);
 
   if (!isAuthed) {
     return (
@@ -100,10 +95,7 @@ export default function RecommendedRow() {
         <div className="relative">
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="min-w-[320px] rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
-              >
+              <div key={i} className="min-w-[320px] rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="h-5 w-24 animate-pulse rounded bg-gray-200" />
                   <div className="h-4 w-10 animate-pulse rounded bg-gray-200" />
@@ -136,12 +128,6 @@ export default function RecommendedRow() {
       </section>
     );
   }
-
-  const allItems = data?.items ?? [];
-  const items = useMemo(
-    () => allItems.filter((it) => !hidden[it.id]),
-    [allItems, hidden]
-  );
 
   if (items.length === 0) {
     return (
