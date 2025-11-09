@@ -3,17 +3,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useNoticePreferences } from "@/hooks/useNoticePreferences";
+import { useAuthStore } from "@/stores/useAuthStore"; // ✅ 변경: 인증은 전용 스토어에서
 
 // 환경 변수에서 API 베이스를 읽습니다.
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
 type LoginInputs = { email: string; password: string };
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setToken } = useNoticePreferences();
+  const { setToken } = useAuthStore(); // ✅ 변경
   const [form, setForm] = useState<LoginInputs>({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -33,36 +32,25 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      // JSON 형식으로 로그인 요청
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password }),
       });
 
       if (!res.ok) {
         const data = await safeJson(res);
-
-        // 사람이 읽을 수 있는 에러 메시지 구성
         const errorContent = data && (data.detail || data.message || data.error);
         let detail: string;
 
-        if (typeof errorContent === "string") {
-          detail = errorContent;
-        } else if (errorContent) {
+        if (typeof errorContent === "string") detail = errorContent;
+        else if (errorContent) {
           try {
             detail = JSON.stringify(errorContent);
           } catch {
             detail = "로그인에 실패했습니다.";
           }
-        } else {
-          detail = `로그인 실패 (${res.status})`;
-        }
+        } else detail = `로그인 실패 (${res.status})`;
 
         throw new Error(detail);
       }
@@ -75,26 +63,21 @@ export default function LoginPage() {
         throw new Error("서버에서 access_token을 받지 못했습니다.");
       }
 
-      // 1) LocalStorage 저장 (기존 로직)
+      // ✅ 인증 토큰을 전용 스토어에 저장
       setToken(accessToken);
 
-      // 2) [추가] API 라우트가 읽을 수 있도록 쿠키 설정
-      //    - 이름: DICE_TOKEN
-      //    - 유효기간: 1일 (86400초)
-      //    - 전체 경로 적용
-      //    - SameSite=Lax (기본 보안)
-      //    - HTTPS 환경이면 Secure 플래그도 부여
+      // (선택) API 라우트가 읽을 수 있도록 쿠키에도 저장
       const attrs = [
         `path=/`,
         `max-age=86400`,
         `samesite=lax`,
-        ...(typeof window !== "undefined" && window.location.protocol === "https:"
+        ...(typeof window !== "undefined" &&
+        window.location.protocol === "https:"
           ? ["secure"]
           : []),
       ].join("; ");
       document.cookie = `DICE_TOKEN=${accessToken}; ${attrs}`;
 
-      // 로그인 후 이동
       router.replace("/notices");
     } catch (err: any) {
       console.error("login error:", err);

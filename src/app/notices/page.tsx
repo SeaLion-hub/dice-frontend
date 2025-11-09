@@ -4,9 +4,8 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import classNames from "classnames";
 import type { Notice } from "@/types/notices";
-// import { NoticeSort } from "@/types/notices"; // ⛔️ 삭제
 import RecommendedRow from "@/components/reco/RecommendedRow";
-import NoticeCard from "@/components/notices/NoticeCard"; // ✅ default import
+import NoticeCard from "@/components/notices/NoticeCard";
 import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
 import { EmptyState } from "@/components/common/EmptyState";
 import BottomNav from "@/components/nav/BottomNav";
@@ -14,7 +13,7 @@ import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
 import {
   useNoticePreferences,
-  NoticeSort, // ✅ 여기서 가져옴
+  type NoticeSort, // ✅ 타입으로 명시
 } from "@/hooks/useNoticePreferences";
 
 function hasToken() {
@@ -81,8 +80,8 @@ export default function NoticesPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const items = useMemo(() => {
-    if (!data) return [];
-    return data.pages.flatMap((page) => page?.items ?? []);
+    if (!data) return [] as Notice[];
+    return data.pages.flatMap((page) => page?.items ?? []) as Notice[];
   }, [data]);
 
   const handleFilterChange = useCallback(

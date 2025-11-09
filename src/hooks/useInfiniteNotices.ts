@@ -1,111 +1,98 @@
 // src/hooks/useInfiniteNotices.ts
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-import type { Notice } from "@/types/notices";
+import type { NoticeSort, DateRange } from "./useNoticePreferences";
 
 type QueryInput = {
   q?: string;
-  sort?: string;
+  sort?: NoticeSort;
   my?: boolean;
   category?: string;
   sourceCollege?: string;
-  dateRange?: string;
+  dateRange?: DateRange | undefined; // "all"은 서버 미전송
 };
 
-type UseInfiniteNoticesParams = {
-  pageSize?: number;
+type UseInfiniteNoticesArgs = {
   query: QueryInput;
+  pageSize?: number;
 };
 
-type IPagedResponse<T> = {
-  items: T[];
-  total?: number;
-  nextOffset?: number;
+export type NoticeItem = {
+  id: string | number;
+  // ...필요한 필드들
+};
+
+type ApiResponse = {
+  items?: NoticeItem[];
+  // 다양한 백엔드 케이스 지원
+  nextCursor?: string | number | null;
   hasNextPage?: boolean;
+  pagination?: {
+    nextPage?: number;
+    hasNext?: boolean;
+  };
 };
 
-function toUrlSearchParams(params: Record<string, unknown>): URLSearchParams {
-  const sp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    if (typeof v === "string" && v.trim() === "") return;
-    if (typeof v === "boolean") {
-      // boolean true만 파라미터로 포함 (false는 생략)
-      if (v) sp.set(k, "true");
-      return;
-    }
-    sp.set(k, String(v));
-  });
-  return sp;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
+
+async function fetchNotices({
+  pageParam = 1,
+  query,
+  pageSize = 20,
+}: {
+  pageParam?: number;
+  query: QueryInput;
+  pageSize: number;
+}) {
+  const params = new URLSearchParams();
+
+  params.set("page", String(pageParam));
+  params.set("pageSize", String(pageSize));
+
+  const { q, sort, my, category, sourceCollege, dateRange } = query;
+
+  if (q) params.set("q", q);
+  if (sort) params.set("sort", sort);
+  if (my) params.set("my", "true");
+  if (sourceCollege) params.set("college", sourceCollege);
+
+  // ✅ 누락되었던 카테고리 파라미터 추가
+  if (category) params.set("category", category);
+
+  // "all"은 필터 없이 조회하도록 미전송하는 컨벤션
+  if (dateRange && dateRange !== "all") params.set("dateRange", dateRange);
+
+  const url = `${API_BASE}/notices?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch notices: ${res.status}`);
+  }
+  const json: ApiResponse = await res.json();
+
+  const items = json.items ?? [];
+  const hasNext =
+    json.hasNextPage ??
+    json.pagination?.hasNext ??
+    // nextCursor가 있거나, 아이템 개수가 pageSize와 같으면 다음 페이지가 있을 가능성이 높음
+    (typeof json.nextCursor !== "undefined"
+      ? Boolean(json.nextCursor)
+      : items.length === pageSize);
+
+  const nextPage =
+    json.pagination?.nextPage ??
+    (hasNext ? (Number.isFinite(pageParam) ? Number(pageParam) + 1 : undefined) : undefined);
+
+  return {
+    items,
+    hasNext,
+    nextPage,
+  };
 }
 
-export function useInfiniteNotices({ pageSize = 20, query }: UseInfiniteNoticesParams) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE ?? "";
-
-  const queryKey = useMemo(() => {
-    // query 객체를 안정적으로 키에 반영
-    return ["notices", { pageSize, ...query }];
-  }, [pageSize, query]);
-
-  // ✨ v5 규약에 맞춰 pageParam: unknown 처리
-  const fetchPage = async (
-    { pageParam }: { pageParam: unknown }
-  ): Promise<IPagedResponse<Notice>> => {
-    const offset = Number(pageParam) || 0;
-
-    const params = toUrlSearchParams({
-      limit: pageSize,
-      offset,
-      q: query.q,
-      sort: query.sort,
-      my: query.my,
-      category: query.category,
-      sourceCollege: query.sourceCollege,
-      dateRange: query.dateRange,
-    });
-
-    const url = `${baseUrl}/notices?${params.toString()}`;
-    const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) {
-      throw new Error(`Failed to load notices: ${res.status}`);
-    }
-
-    // 백엔드 응답 예시 가정:
-    // { items: Notice[], total: number, nextOffset?: number, hasNextPage?: boolean }
-    const data = (await res.json()) as IPagedResponse<Notice>;
-
-    // nextOffset/hasNextPage 중 하나만 오는 경우 대비해 보강
-    const computedHasNext =
-      typeof data.hasNextPage === "boolean"
-        ? data.hasNextPage
-        : typeof data.nextOffset === "number";
-
-    return {
-      items: data.items ?? [],
-      total: data.total,
-      nextOffset:
-        typeof data.nextOffset === "number"
-          ? data.nextOffset
-          : (offset + (data.items?.length ?? 0)) || undefined,
-      hasNextPage: computedHasNext,
-    };
-  };
-
+export function useInfiniteNotices({ query, pageSize = 20 }: UseInfiniteNoticesArgs) {
   return useInfiniteQuery({
-    queryKey,
-    queryFn: fetchPage,
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
-      if (lastPage?.hasNextPage && typeof lastPage.nextOffset === "number") {
-        return lastPage.nextOffset;
-      }
-      // items가 pageSize만큼 왔으면 다음 페이지가 있을 가능성
-      if ((lastPage?.items?.length ?? 0) >= pageSize) {
-        return (lastPage?.nextOffset ?? 0) + pageSize;
-      }
-      return undefined;
-    },
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 30,
+    queryKey: ["notices", query, pageSize],
+    queryFn: ({ pageParam }) => fetchNotices({ pageParam, query, pageSize }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage?.hasNext ? lastPage.nextPage : undefined),
   });
 }
