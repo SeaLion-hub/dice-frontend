@@ -2,8 +2,6 @@
 
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import classNames from "classnames";
-import Link from "next/link";
-
 import type { NoticeItem } from "@/types/notices";
 
 import RecommendedRow from "@/components/reco/RecommendedRow";
@@ -13,7 +11,6 @@ import { EmptyState } from "@/components/common/EmptyState";
 import BottomNav from "@/components/nav/BottomNav";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
-
 import {
   useNoticePreferences,
   NoticeSort,
@@ -55,10 +52,9 @@ export default function NoticesPage() {
     filters,
   });
 
-  function handleSetTab(nextTab: "custom" | "all") {
-    setTab(nextTab);
-  }
+  const handleSetTab = (nextTab: "custom" | "all") => setTab(nextTab);
 
+  // infinite scroll
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinelRef.current;
@@ -94,12 +90,9 @@ export default function NoticesPage() {
     [setSort]
   );
 
-  const handleSearchSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-    },
-    []
-  );
+  const handleSearchSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+  }, []);
 
   const appliedFilterCount = useMemo(() => {
     let count = 0;
@@ -118,9 +111,7 @@ export default function NoticesPage() {
   useEffect(() => {
     async function fetchColleges() {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE}/colleges`
-        );
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/colleges`);
         const data = await res.json();
         setCollegeOptions(data.items || []);
       } catch (e) {
@@ -146,6 +137,7 @@ export default function NoticesPage() {
 
   return (
     <main className="mx-auto mb-20 max-w-screen-xl px-4 py-4">
+      {/* 상단: 탭/검색/필터 */}
       <div className="sticky top-0 z-10 -mx-4 mb-3 bg-gray-100/80 px-4 py-2 backdrop-blur">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
@@ -228,9 +220,7 @@ export default function NoticesPage() {
 
             <select
               value={filters.dateRange}
-              onChange={(e) =>
-                handleFilterChange("dateRange", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("dateRange", e.target.value)}
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
               <option value="all">전체 기간</option>
@@ -250,30 +240,53 @@ export default function NoticesPage() {
 
       {tab === "custom" && hasToken() && <RecommendedRow />}
 
-      <section className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {isLoading &&
-          Array.from({ length: 6 }).map((_, i) => (
-            <NoticeCardSkeleton key={i} />
+      {/* ====== 리스트 컨테이너 ====== */}
+      <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
+        {/* 헤더: grid-cols-12 (새 칼럼 구조) */}
+        <div className="hidden border-b border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
+          {/* 제목: 5칸 */}
+          <div className="col-span-5">제목</div>
+          {/* 대분류: 2칸, 소분류: 2칸 */}
+          <div className="col-span-2">대분류</div>
+          <div className="col-span-2">소분류</div>
+          {/* 출처: 1칸, 등록일: 1칸, 관리: 1칸 */}
+          <div className="col-span-1">출처</div>
+          <div className="col-span-1 text-right">등록일</div>
+          <div className="col-span-1 text-center">관리</div>
+        </div>
+
+        {/* 바디 */}
+        <section className="divide-y divide-gray-200">
+          {isLoading &&
+            Array.from({ length: 6 }).map((_, i) => <NoticeCardSkeleton key={i} />)}
+
+          {isError && (
+            <div className="p-4 text-sm text-red-800">
+              목록을 불러오지 못했어요.{" "}
+              <button className="underline" onClick={() => refetch()}>
+                다시 시도
+              </button>
+            </div>
+          )}
+
+          {!isLoading && !isError && items.length === 0 && (
+            <div className="p-6">{renderEmptyState()}</div>
+          )}
+
+          {items.map((notice: NoticeItem) => (
+            <NoticeCard
+              key={notice.id}
+              item={notice}
+              dense
+              // 필요 시 onToggleRead/onSaveForLater/onHide/onToggleBookmark 전달 가능
+            />
           ))}
-
-        {isError && (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            목록을 불러오지 못했어요.{" "}
-            <button className="underline" onClick={() => refetch()}>
-              다시 시도
-            </button>
-          </div>
-        )}
-
-        {!isLoading && !isError && items.length === 0 && renderEmptyState()}
-
-        {items.map((notice: NoticeItem) => (
-          <NoticeCard key={notice.id} item={notice} />
-        ))}
-      </section>
+        </section>
+      </div>
 
       <div ref={sentinelRef} className="h-12" />
       {renderBottomLoader()}
+
       {showScrollTop && (
         <button
           onClick={scrollToTop}
@@ -283,6 +296,7 @@ export default function NoticesPage() {
           ↑
         </button>
       )}
+
       <BottomNav />
     </main>
   );

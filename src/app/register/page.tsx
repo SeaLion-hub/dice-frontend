@@ -44,86 +44,42 @@ const INCOME_OPTIONS = Array.from({ length: 11 }).map((_, i) => ({
   label: `${i}분위`,
 }));
 
-/** 키워드 트리(상위 → 하위). */
+/* =========================================
+ * 4단계 키워드: 대분류(‘#기타’ 제거) → 소분류
+ * ========================================= */
 const KEYWORDS_TREE: Record<string, string[]> = {
   "#학사": [
-    "#소속변경",
-    "#캠퍼스내소속변경",
-    "#휴학",
-    "#복학",
-    "#수강신청",
-    "#졸업",
-    "#등록금",
-    "#교과목",
-    "#전공과목",
-    "#다전공",
+    "#소속변경", "#ABEEK", "#신입생", "#S/U", "#교직과정",
+    "#휴학", "#복학", "#수강신청", "#졸업", "#등록금",
+    "#교과목", "#전공과목", "#다전공", "#기타",
   ],
   "#장학": [
-    "#장학금",
-    "#장학생",
-    "#장학생선발",
-    "#블루버터플라이",
-    "#fellowship",
-    "#가계곤란",
-    "#needbased",
-    "#성적우수",
-    "#신입생",
-    "#생활비",
-    "#재단명",
+    "#가계곤란", "#국가장학", "#근로장학", "#성적우수",
+    "#생활비", "#기타",
   ],
   "#취업": [
-    "#채용",
-    "#공개채용",
-    "#임용",
-    "#인턴십",
-    "#현장실습",
-    "#강사",
-    "#비전임교원",
-    "#조교",
-    "#채용설명회",
-    "#취업특강",
-    "#지원서",
-    "#기업명",
-    "#직무",
+    "#채용", "#인턴십", "#현장실습", "#강사", "#조교",
+    "#채용설명회", "#취업특강", "#창업", "#기타",
   ],
   "#행사": [
-    "#특강",
-    "#워크숍",
-    "#세미나",
-    "#설명회",
-    "#포럼",
-    "#개최",
-    "#교육",
-    "#프로그램",
-    "#AI",
-    "#리더십",
-    "#창업",
+    "#특강", "#워크숍", "#세미나", "#설명회", "#포럼",
+    "#지원", "#교육", "#프로그램", "#기타",
   ],
   "#공모전/대회": [
-    "#공모전",
-    "#경진대회",
-    "#숏폼",
-    "#영상",
-    "#아이디어",
-    "#논문",
-    "#학생설계전공",
-    "#마이크로전공",
+    "#공모전", "#경진대회", "#디자인", "#숏폼", "#영상",
+    "#아이디어", "#논문", "#학생설계전공", "#마이크로전공", "#기타",
   ],
   "#국제교류": [
-    "#교환학생",
-    "#파견",
-    "#선발",
-    "#campusasia",
-    "#글로벌",
-    "#단기",
-    "#하계",
-    "#동계",
-    "#어학연수",
-    "#일본",
-    "#미국",
+    "#교환학생", "#파견", "#campusasia", "#글로벌",
+    "#단기", "#하계", "#동계", "#어학연수", "#해외봉사",
+    "#일본", "#미국", "#기타",
   ],
   "#일반": [],
 };
+
+// 세부 없이 바로 토글로 선택할 대분류(모달 열지 않음)
+const PARENTS_WITHOUT_DETAIL = ["#일반"];
+
 const TOP_LEVEL_KEYWORDS = Object.keys(KEYWORDS_TREE);
 const ALL_ALLOWED_KEYWORDS = TOP_LEVEL_KEYWORDS.reduce<string[]>(
   (acc, p) => acc.concat(p, KEYWORDS_TREE[p]),
@@ -154,7 +110,7 @@ type ProfileInputs = {
   major: string;
 
   // 상세 정보(선택)
-  military_service: "" | "completed" | "pending" | "exempt" | "n/a";
+  military_service: typeof MILITARY_OPTIONS[number]["value"];
   income_bracket: string;
   gpa: string;
   languageScores: LanguageScores;
@@ -322,7 +278,19 @@ function RegisterInner() {
 
   // 키워드 모달 상태
   const [keywordModalParent, setKeywordModalParent] = useState<string | null>(null);
-  const openKeywordModal = (parent: string) => setKeywordModalParent(parent);
+  const openKeywordModal = (parent: string) => {
+    const children = KEYWORDS_TREE[parent] ?? [];
+    const noDetail =
+      children.length === 0 || PARENTS_WITHOUT_DETAIL.includes(parent);
+
+    if (noDetail) {
+      const set = new Set(profileForm.getValues("keywords"));
+      set.has(parent) ? set.delete(parent) : set.add(parent);
+      profileForm.setValue("keywords", Array.from(set), { shouldValidate: true });
+      return; // 모달 열지 않음
+    }
+    setKeywordModalParent(parent);
+  };
   const closeKeywordModal = () => setKeywordModalParent(null);
 
   // ---------- handlers ----------
@@ -360,29 +328,28 @@ function RegisterInner() {
   });
 
   const submitProfileToServer = async () => {
-    // 유효성 체크는 각 단계에서 이미 했으므로 최종 조합만 수행
     setLoading(true);
     try {
       const acc = accountForm.getValues();
       const p = profileForm.getValues();
 
-      // 로그인 토큰
+      // 1) 로그인
       const loginRes = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: acc.email, password: acc.password }),
       });
+      const loginData = await loginRes.json();
       if (!loginRes.ok) {
-        const data = await safeJson(loginRes);
         throw new Error(
-          (data && (data.detail || data.message)) ?? "로그인 토큰 발급에 실패했습니다."
+          (loginData && (loginData.detail || loginData.message)) ??
+          "로그인 토큰 발급에 실패했습니다."
         );
       }
-      const loginData = await loginRes.json();
       const token = loginData.access_token;
       if (!token) throw new Error("서버가 access_token을 보내지 않았습니다.");
 
-      // language_scores 구성
+      // 2) language_scores 숫자만 추출
       const language_scores: Record<string, number> = {};
       (Object.keys(p.languageScores) as TestKey[]).forEach((k) => {
         const { enabled, score } = p.languageScores[k];
@@ -393,26 +360,43 @@ function RegisterInner() {
         }
       });
 
-      // 페이로드
-      const ageNum = Number(p.age);
-      const gradeNum = Number(p.grade);
+      // 3) keywords 안전 필터링(화이트리스트 + 중복 제거)
+      const allowed = new Set(ALL_ALLOWED_KEYWORDS);
+      const keywords = Array.from(
+        new Set((p.keywords || []).filter((k) => allowed.has(k)))
+      );
+
+      // 4) payload 생성 + 정규화
+      const ageNum = Number.parseInt(p.age, 10);
+      const gradeNum = Number.parseInt(String(p.grade), 10);
+
       const payload: any = {
-        gender: p.gender,
+        // gender: 백엔드 Enum에 없는 값은 보내지 않음
+        ...(p.gender && p.gender !== "prefer_not_to_say" ? { gender: p.gender } : {}),
         age: ageNum,
         major: p.major,
         grade: gradeNum,
-        keywords: p.keywords,
+        keywords,
       };
-      const incomeNum =
-        p.income_bracket !== "" ? Number(p.income_bracket) : null;
-      const gpaNum = p.gpa ? Number(p.gpa) : null;
 
-      if (p.military_service) payload.military_service = p.military_service;
-      if (incomeNum !== null) payload.income_bracket = incomeNum;
-      if (gpaNum !== null) payload.gpa = Number(gpaNum.toFixed(2));
+      // optional 필드는 빈문자면 아예 빼서 null 취급 받도록
+      if (p.military_service) {
+        payload.military_service = p.military_service;
+      }
+
+      const inc = p.income_bracket === "" ? null : Number(p.income_bracket);
+      if (inc !== null && !Number.isNaN(inc)) payload.income_bracket = inc;
+
+      const gpaNumRaw = p.gpa?.trim();
+      if (gpaNumRaw) {
+        const g = Number(gpaNumRaw);
+        if (!Number.isNaN(g)) payload.gpa = Number(g.toFixed(2));
+      }
+
       if (Object.keys(language_scores).length > 0)
         payload.language_scores = language_scores;
 
+      // 5) 최종 전송
       const profileRes = await fetch(`${API_BASE}/auth/me/profile`, {
         method: "PUT",
         headers: {
@@ -422,14 +406,23 @@ function RegisterInner() {
         body: JSON.stringify(payload),
       });
 
+      // 6) 에러 상세 보기(422 디버깅 편의)
+      const respText = await profileRes.text();
+      let respJson: any = null;
+      try {
+        respJson = JSON.parse(respText);
+      } catch {}
+
       if (!profileRes.ok) {
-        const data = await safeJson(profileRes);
+        console.error("Profile update failed:", respJson || respText);
         let detailMsg = "프로필 저장에 실패했습니다.";
-        if (data && data.detail) {
-          if (typeof data.detail === "string") detailMsg = data.detail;
-          else if (Array.isArray(data.detail)) {
-            const firstError = data.detail[0];
-            const fieldName = firstError?.loc?.[1] ?? "필드";
+        const d = respJson;
+        if (d?.detail) {
+          if (typeof d.detail === "string") detailMsg = d.detail;
+          else if (Array.isArray(d.detail)) {
+            const firstError = d.detail[0];
+            const fieldName =
+              firstError?.loc?.[firstError.loc.length - 1] ?? "필드";
             const reason = firstError?.msg ?? "유효하지 않은 값";
             detailMsg = `입력 오류 (${fieldName}): ${reason}`;
           }
@@ -437,10 +430,10 @@ function RegisterInner() {
         throw new Error(detailMsg);
       }
 
+      // 성공
       localStorage.setItem("DICE_TOKEN", token);
       router.replace("/notices");
     } catch (err: any) {
-      // 최종 단계에서 대표 에러 알림: 키워드 단계 상단에 표시
       profileForm.setError("keywords", {
         type: "server",
         message: err?.message ?? "알 수 없는 오류가 발생했습니다.",
@@ -875,7 +868,7 @@ function RegisterInner() {
                     관심 키워드 (필수 · 최소 1개)
                   </label>
 
-                  {/* 상위 키워드 선택 → 모달 */}
+                  {/* 대분류 버튼들 */}
                   <div className="flex flex-wrap gap-2 mb-2">
                     {TOP_LEVEL_KEYWORDS.map((parent) => (
                       <button
@@ -889,7 +882,7 @@ function RegisterInner() {
                     ))}
                   </div>
 
-                  {/* 현재 선택된 하위 키워드 미리보기 */}
+                  {/* 선택된 키워드 미리보기 */}
                   <SelectedKeywordsPreview
                     keywords={profileForm.watch("keywords")}
                     onRemove={(kw) => {
@@ -925,7 +918,7 @@ function RegisterInner() {
               </form>
             </FormProvider>
 
-            {/* 키워드 모달 */}
+            {/* 세부 키워드 모달 */}
             <Modal
               open={!!keywordModalParent}
               title={`${keywordModalParent ?? ""} 세부 키워드 선택`}
@@ -937,9 +930,11 @@ function RegisterInner() {
                   keywords={profileForm.watch("keywords")}
                   onToggleAll={() => {
                     const children = KEYWORDS_TREE[keywordModalParent] ?? [];
-                    const allSelected = children.length > 0 && children.every((c) =>
-                      profileForm.getValues("keywords").includes(c)
-                    );
+                    const allSelected =
+                      children.length > 0 &&
+                      children.every((c) =>
+                        profileForm.getValues("keywords").includes(c)
+                      );
                     if (allSelected) {
                       profileForm.setValue(
                         "keywords",
@@ -991,7 +986,7 @@ function SelectedKeywordsPreview({
 }) {
   if (!keywords || keywords.length === 0) {
     return <p className="text-xs text-gray-500">선택된 키워드가 없습니다.</p>;
-  }
+    }
   return (
     <div className="flex flex-wrap gap-2">
       {keywords.map((k) => (

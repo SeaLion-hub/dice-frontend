@@ -12,8 +12,13 @@ export type NoticeItem = {
   title: string;
   source_college?: string;
   posted_at?: string;        // "2025-10-28T02:10:00Z"
-  category_ai?: string;      // "#학사", "#장학" 등
+  category_ai?: string;      // "#학사", "#장학" 등 (AI V1 - 레거시)
+  summary_raw?: string;      // 요약/본문요약
   qualification_ai?: QualificationAI;
+
+  // [추가됨] AI V2 필드
+  hashtags_ai?: string;       // AI가 분류한 대분류 (예: "학사", "취업")
+  detailed_hashtags?: string[]; // AI가 추출한 세부 태그 배열 (예: ["소속변경", "채용"])
 
   // 추천 전용 필드
   suitability?: "eligible" | "check" | "ineligible";
