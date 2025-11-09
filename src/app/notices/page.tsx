@@ -4,8 +4,8 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import classNames from "classnames";
+import { SlidersHorizontal } from "lucide-react";
 import type { Notice } from "@/types/notices";
-import RecommendedRow from "@/components/reco/RecommendedRow";
 import { useAuthStore } from "@/stores/useAuthStore";
 import NoticeCard from "@/components/notices/NoticeCard";
 import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
@@ -15,8 +15,21 @@ import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
 import {
   useNoticePreferences,
-  type NoticeSort, // ✅ 타입으로 명시
+  type NoticeSort,
+  type NoticeFilters,
+  type DateRange,
 } from "@/hooks/useNoticePreferences";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useCalendarStore } from "@/stores/useCalendarStore";
 
 // store 기반 인증 여부 사용
 
@@ -26,6 +39,14 @@ export default function NoticesPage() {
   useEffect(() => setMounted(true), []);
   const token = useAuthStore((s) => s.token);
   const isAuthed = !!token;
+
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<NoticeFilters>({
+    category: "",
+    sourceCollege: "",
+    dateRange: "all",
+  });
+  const [draftSort, setDraftSort] = useState<NoticeSort>("recent");
 
   const {
     tab,
@@ -37,6 +58,16 @@ export default function NoticesPage() {
     filters,
     setFilters,
   } = useNoticePreferences();
+
+  useEffect(() => {
+    if (!filterDialogOpen) return;
+    setDraftFilters({
+      category: filters?.category ?? "",
+      sourceCollege: filters?.sourceCollege ?? "",
+      dateRange: (filters?.dateRange ?? "all") as DateRange,
+    });
+    setDraftSort(sort);
+  }, [filterDialogOpen, filters, sort]);
 
   const query = useMemo(() => {
     return {
@@ -87,19 +118,31 @@ export default function NoticesPage() {
     return data.pages.flatMap((page) => page?.items ?? []) as Notice[];
   }, [data]);
 
-  const handleFilterChange = useCallback(
-    (key: "category" | "sourceCollege" | "dateRange", value: string) => {
-      setFilters({ [key]: value });
-    },
-    [setFilters]
-  );
+  const syncNoticeEvents = useCalendarStore((state) => state.syncNoticeEvents);
 
-  const handleSortChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setSort(e.target.value as NoticeSort);
-    },
-    [setSort]
-  );
+  useEffect(() => {
+    if (items.length === 0) return;
+    syncNoticeEvents(items);
+  }, [items, syncNoticeEvents]);
+
+  const handleFilterDialogOpenChange = useCallback((open: boolean) => {
+    setFilterDialogOpen(open);
+  }, []);
+
+  const handleFilterApply = useCallback(() => {
+    setFilters({
+      category: draftFilters.category ?? "",
+      sourceCollege: draftFilters.sourceCollege ?? "",
+      dateRange: (draftFilters.dateRange ?? "all") as DateRange,
+    });
+    setSort(draftSort);
+    setFilterDialogOpen(false);
+  }, [draftFilters, draftSort, setFilters, setSort]);
+
+  const handleFilterReset = useCallback(() => {
+    setDraftFilters({ category: "", sourceCollege: "", dateRange: "all" });
+    setDraftSort("recent");
+  }, []);
 
   const handleSearchSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -150,111 +193,167 @@ export default function NoticesPage() {
     );
   };
 
+  const sortLabel = sort === "recent" ? "최신순" : "과거순";
+
   return (
     <main className="mx-auto mb-20 max-w-screen-xl px-4 py-4">
-      {/* 상단: 탭/검색/필터 */}
-      <div className="sticky top-0 z-10 -mx-4 mb-3 bg-gray-100/80 px-4 py-2 backdrop-blur">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
-            <button
-              onClick={() => handleSetTab("my")}
-              className={classNames(
-                "rounded-lg px-3 py-1.5 text-sm",
-                // Hydration 안전: 초기 SSR에선 중립 스타일, 클라이언트 마운트 후 활성화 표시
-                mounted && tab === "my" ? "bg-gray-100 font-medium" : "text-gray-600"
-              )}
-            >
-              맞춤 공지
-            </button>
-            <button
-              onClick={() => handleSetTab("all")}
-              className={classNames(
-                "rounded-lg px-3 py-1.5 text-sm",
-                mounted && tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
-              )}
-            >
-              전체 공지
-            </button>
+      <div className="sticky top-0 z-20 -mx-4 mb-4 bg-gray-100/80 backdrop-blur">
+        <div className="px-4 py-3 space-y-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+              <button
+                onClick={() => handleSetTab("my")}
+                className={classNames(
+                  "rounded-lg px-3 py-1.5 text-sm",
+                  mounted && tab === "my" ? "bg-gray-100 font-medium" : "text-gray-600"
+                )}
+              >
+                맞춤 공지
+              </button>
+              <button
+                onClick={() => handleSetTab("all")}
+                className={classNames(
+                  "rounded-lg px-3 py-1.5 text-sm",
+                  mounted && tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
+                )}
+              >
+                전체 공지
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <form
+                onSubmit={handleSearchSubmit}
+                className="flex w-full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm sm:w-72"
+              >
+                <span className="mr-2 text-gray-400">🔍</span>
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full border-none p-0 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
+                  placeholder="키워드 검색"
+                />
+                <button
+                  type="submit"
+                  className="ml-2 whitespace-nowrap rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+                >
+                  검색
+                </button>
+              </form>
+
+              <Dialog open={filterDialogOpen} onOpenChange={handleFilterDialogOpenChange}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span className="text-sm">필터 · {sortLabel}</span>
+                    {appliedFilterCount > 0 && (
+                      <span className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-medium text-white">
+                        {appliedFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>필터 설정</DialogTitle>
+                    <DialogDescription>
+                      원하는 조건을 선택하고 적용을 눌러주세요. 적용 시 목록이 즉시 업데이트됩니다.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-gray-900">정렬</p>
+                      <select
+                        value={draftSort}
+                        onChange={(e) => setDraftSort(e.target.value as NoticeSort)}
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="recent">최신순</option>
+                        <option value="oldest">과거순</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-gray-900">카테고리</p>
+                      <select
+                        value={draftFilters.category ?? ""}
+                        onChange={(e) =>
+                          setDraftFilters((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">전체</option>
+                        <option value="장학">장학</option>
+                        <option value="채용">채용</option>
+                        <option value="행사">행사/설명회</option>
+                        <option value="대외활동">대외활동</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-gray-900">출처</p>
+                      <select
+                        value={draftFilters.sourceCollege ?? ""}
+                        onChange={(e) =>
+                          setDraftFilters((prev) => ({ ...prev, sourceCollege: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">전체</option>
+                        {collegeOptions.map((c) => (
+                          <option key={c.college_key} value={c.college_key}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-gray-900">기간</p>
+                      <select
+                        value={draftFilters.dateRange ?? "all"}
+                        onChange={(e) =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            dateRange: (e.target.value || "all") as DateRange,
+                          }))
+                        }
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="all">전체</option>
+                        <option value="1d">최근 1일</option>
+                        <option value="1w">최근 1주</option>
+                        <option value="1m">최근 1달</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={handleFilterReset} type="button">
+                      초기화
+                    </Button>
+                    <Button onClick={handleFilterApply} type="button">
+                      적용
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-            <form
-              onSubmit={handleSearchSubmit}
-              className="flex w/full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm md:w-64"
-            >
-              <span className="mr-2 text-gray-400">🔍</span>
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border-none p-0 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
-                placeholder="키워드 검색"
-              />
-              <button
-                type="submit"
-                className="ml-2 whitespace-nowrap rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
-              >
-                검색
-              </button>
-            </form>
-
-            <select
-              value={sort || ""} // ✨ 안전 처리
-              onChange={handleSortChange}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
-            >
-              <option value="recent">최신순</option>
-              <option value="oldest">과거순</option>
-            </select>
-
-            <select
-              value={filters?.category || ""} // ✨ 안전 처리
-              onChange={(e) => handleFilterChange("category", e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
-            >
-              <option value="">전체 카테고리</option>
-              <option value="장학">장학</option>
-              <option value="채용">채용</option>
-              <option value="행사">행사/설명회</option>
-              <option value="대외활동">대외활동</option>
-            </select>
-
-            <select
-              value={filters?.sourceCollege || ""} // ✨ 안전 처리
-              onChange={(e) =>
-                handleFilterChange("sourceCollege", e.target.value)
-              }
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
-            >
-              <option value="">전체 소스</option>
-              {collegeOptions.map((c) => (
-                <option key={c.college_key} value={c.college_key}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filters?.dateRange || ""} // ✨ 안전 처리
-              onChange={(e) => handleFilterChange("dateRange", e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
-            >
-              <option value="">전체 기간</option>
-              <option value="1d">최근 1일</option>
-              <option value="1w">최근 1주</option>
-              <option value="1m">최근 1달</option>
-            </select>
-
-            <span className="text-[11px] text-gray-500">
-              필터 {appliedFilterCount}개 적용
-            </span>
+          <div className="hidden border-t border-gray-200 pt-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
+            <div className="col-span-6">제목</div>
+            <div className="col-span-2">대분류</div>
+            <div className="col-span-2">소분류</div>
+            <div className="col-span-1">출처</div>
+            <div className="col-span-1 text-center">자격</div>
           </div>
         </div>
       </div>
 
-      {tab === "my" && isAuthed && <RecommendedRow />}
-
       {/* ====== 리스트 컨테이너 ====== */}
-      <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {/* 헤더 */}
         <div className="hidden border-b border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
           <div className="col-span-6">제목</div>
@@ -292,6 +391,7 @@ export default function NoticesPage() {
               item={notice}
               dense
               onClick={handleNoticeClick}
+              recommended={tab === "my"}
             />
           ))}
         </section>

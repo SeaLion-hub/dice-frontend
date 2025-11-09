@@ -1,5 +1,5 @@
 // src/lib/calendarStorage.ts
-import type { CalendarEvent, CalendarEventInput } from "@/types/calendar";
+import type { CalendarEvent } from "@/types/calendar";
 
 const STORAGE_KEY = "dice_calendar_events";
 
@@ -12,64 +12,23 @@ export function getCalendarEvents(): CalendarEvent[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
-    return JSON.parse(stored) as CalendarEvent[];
+    return (JSON.parse(stored) as CalendarEvent[]).map((event) => ({
+      ...event,
+      source: event.source ?? "manual",
+    }));
   } catch (error) {
     console.error("Failed to parse calendar events from localStorage:", error);
     return [];
   }
 }
 
-/**
- * 캘린더 이벤트를 저장합니다.
- */
-export function saveCalendarEvent(input: CalendarEventInput): CalendarEvent {
-  const events = getCalendarEvents();
-  
-  const newEvent: CalendarEvent = {
-    id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    noticeId: input.noticeId,
-    title: input.title,
-    startDate: input.startDate.toISOString(),
-    endDate: input.endDate ? input.endDate.toISOString() : null,
-    createdAt: new Date().toISOString(),
-  };
-  
-  // 중복 체크 (같은 noticeId와 날짜가 있으면 스킵)
-  const isDuplicate = events.some(
-    (event) =>
-      event.noticeId === newEvent.noticeId &&
-      event.startDate === newEvent.startDate
-  );
-  
-  if (!isDuplicate) {
-    events.push(newEvent);
+export function setCalendarEvents(events: CalendarEvent[]): void {
+  if (typeof window === "undefined") return;
+  try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-    // 같은 탭에서의 변경 감지를 위한 이벤트 발생
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("calendar-updated"));
-    }
+  } catch (error) {
+    console.error("Failed to write calendar events to localStorage:", error);
   }
-  
-  return newEvent;
-}
-
-/**
- * 캘린더 이벤트를 삭제합니다.
- */
-export function deleteCalendarEvent(eventId: string): boolean {
-  const events = getCalendarEvents();
-  const filtered = events.filter((event) => event.id !== eventId);
-  
-  if (filtered.length < events.length) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-    // 같은 탭에서의 변경 감지를 위한 이벤트 발생
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("calendar-updated"));
-    }
-    return true;
-  }
-  
-  return false;
 }
 
 /**

@@ -3,7 +3,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/useAuthStore"; // ✅ 변경: 인증은 전용 스토어에서
+import { useAuthStore } from "@/stores/useAuthStore";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { FieldError } from "@/components/profile/FieldError";
 
 // 환경 변수에서 API 베이스를 읽습니다.
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
@@ -97,13 +101,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-700 font-medium mb-1">
-              이메일
-            </label>
-            <input
+            <Label htmlFor="login-email">이메일</Label>
+            <Input
+              id="login-email"
               type="email"
               required
-              className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               placeholder="you@yonsei.ac.kr"
               value={form.email}
               onChange={(e) =>
@@ -113,13 +115,11 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-700 font-medium mb-1">
-              비밀번호
-            </label>
-            <input
+            <Label htmlFor="login-password">비밀번호</Label>
+            <Input
+              id="login-password"
               type="password"
               required
-              className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               placeholder="••••••••"
               value={form.password}
               onChange={(e) =>
@@ -129,18 +129,12 @@ export default function LoginPage() {
           </div>
 
           {errorMsg && (
-            <div className="text-sm text-red-600 whitespace-pre-line">
-              {errorMsg}
-            </div>
+            <FieldError message={errorMsg} className="text-sm text-red-600 whitespace-pre-line" />
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-300 text-white font-medium py-2 rounded-lg text-sm transition-colors"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? "로그인 중..." : "로그인"}
-          </button>
+          </Button>
         </form>
 
         <div className="text-center text-sm text-gray-600 mt-6">

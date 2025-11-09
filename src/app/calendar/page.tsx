@@ -2,51 +2,59 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import BottomNav from "@/components/nav/BottomNav";
-import {
-  getCalendarEvents,
-  deleteCalendarEvent,
-  getEventsByMonth,
-} from "@/lib/calendarStorage";
 import type { CalendarEvent } from "@/types/calendar";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useCalendarStore } from "@/stores/useCalendarStore";
 
 export default function CalendarPage() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = React.useState(new Date());
-  const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
+  const events = useCalendarStore((state) => state.events);
+  const hydrate = useCalendarStore((state) => state.hydrate);
+  const removeEvent = useCalendarStore((state) => state.removeEvent);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  // 이벤트 로드 함수
-  const loadEvents = React.useCallback(() => {
-    const monthEvents = getEventsByMonth(year, month);
-    setEvents(monthEvents);
-  }, [year, month]);
-
-  // 이벤트 로드
   React.useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+    hydrate();
+  }, [hydrate]);
 
-  // 전역 이벤트 리스너로 스토리지 변경 감지
-  React.useEffect(() => {
-    const handleStorageChange = () => {
-      loadEvents();
-    };
+  const monthEvents = React.useMemo(() => {
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
 
-    window.addEventListener("storage", handleStorageChange);
-    // 같은 탭에서의 변경도 감지하기 위해 커스텀 이벤트 사용
-    window.addEventListener("calendar-updated", handleStorageChange);
+    return events.filter((event) => {
+      const start = new Date(event.startDate).getTime();
+      const end = event.endDate ? new Date(event.endDate).getTime() : start;
+      return (
+        (start >= startMs && start <= endMs) ||
+        (end >= startMs && end <= endMs) ||
+        (start <= startMs && end >= endMs)
+      );
+    });
+  }, [events, year, month]);
 
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("calendar-updated", handleStorageChange);
-    };
-  }, [loadEvents]);
+  const sortedMonthEvents = React.useMemo(
+    () =>
+      [...monthEvents].sort(
+        (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+      ),
+    [monthEvents]
+  );
 
   // 이전 달로 이동
   const goToPreviousMonth = () => {
@@ -66,8 +74,7 @@ export default function CalendarPage() {
   // 이벤트 삭제
   const handleDeleteEvent = (eventId: string) => {
     if (confirm("이 일정을 삭제하시겠습니까?")) {
-      deleteCalendarEvent(eventId);
-      loadEvents();
+      removeEvent(eventId);
       setSelectedEvent(null);
     }
   };
@@ -100,13 +107,13 @@ export default function CalendarPage() {
     if (!date) return [];
     const targetDateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
     const targetDateEnd = targetDateStart + 24 * 60 * 60 * 1000 - 1;
-    
-    return events.filter((event) => {
+
+    return monthEvents.filter((event) => {
       const eventStart = new Date(event.startDate).getTime();
-      const eventEnd = event.endDate 
+      const eventEnd = event.endDate
         ? new Date(event.endDate).getTime()
         : eventStart;
-      
+
       // 이벤트가 해당 날짜와 겹치는지 확인
       return (
         (eventStart >= targetDateStart && eventStart < targetDateEnd) ||
@@ -156,8 +163,8 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {/* 캘린더 그리드 */}
-      <div className="rounded-lg border bg-white p-4">
+      {/* 캘린더 그리드 (데스크톱) */}
+      <div className="hidden rounded-lg border bg-white p-4 md:block">
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {dayNames.map((day) => (
@@ -224,80 +231,125 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {/* 모바일 아젠다 뷰 */}
+      <div className="md:hidden">
+        <div className="rounded-lg border bg-white p-4">
+          <h3 className="mb-3 text-base font-semibold text-gray-900">이번 달 일정</h3>
+          {sortedMonthEvents.length === 0 ? (
+            <p className="text-sm text-gray-500">저장된 일정이 없습니다.</p>
+          ) : (
+            <div className="space-y-3">
+              {sortedMonthEvents.map((event) => (
+                <button
+                  key={event.id}
+                  type="button"
+                  onClick={() => setSelectedEvent(event)}
+                  className="w-full rounded-lg border px-3 py-2 text-left hover:bg-gray-50"
+                >
+                  <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <span>{event.title}</span>
+                    {event.source === "auto" && (
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+                        자동
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(event.startDate).toLocaleDateString("ko-KR", {
+                      month: "long",
+                      day: "numeric",
+                    })}
+                    {event.endDate &&
+                      ` ~ ${new Date(event.endDate).toLocaleDateString("ko-KR", {
+                        month: "long",
+                        day: "numeric",
+                      })}`}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 이벤트 목록 */}
-      <div className="mt-6 rounded-lg border bg-white p-4">
+      <div className="mt-6 rounded-lg border bg-white p-4 md:block hidden">
         <h3 className="mb-4 text-lg font-semibold">
           {formatDate(currentDate)} 일정
         </h3>
-        {events.length === 0 ? (
+        {sortedMonthEvents.length === 0 ? (
           <p className="text-center text-gray-500">저장된 일정이 없습니다.</p>
         ) : (
           <div className="space-y-2">
-            {events
-              .sort(
-                (a, b) =>
-                  new Date(a.startDate).getTime() -
-                  new Date(b.startDate).getTime()
-              )
-              .map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-gray-50"
+            {sortedMonthEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-center justify-between rounded-lg border p-3 hover:bg-gray-50"
+              >
+                <button
+                  type="button"
+                  className="flex-1 text-left"
+                  onClick={() => setSelectedEvent(event)}
                 >
-                  <div
-                    className="flex-1 cursor-pointer"
-                    onClick={() => setSelectedEvent(event)}
-                  >
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-sm text-gray-500">
-                      {new Date(event.startDate).toLocaleDateString("ko-KR", {
+                  <div className="font-medium flex items-center gap-2">
+                    <span>{event.title}</span>
+                    {event.source === "auto" && (
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+                        자동
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {new Date(event.startDate).toLocaleDateString("ko-KR", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                    {event.endDate &&
+                      ` ~ ${new Date(event.endDate).toLocaleDateString("ko-KR", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
-                      })}
-                      {event.endDate &&
-                        ` ~ ${new Date(event.endDate).toLocaleDateString("ko-KR", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}`}
-                    </div>
+                      })}`}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => router.push(`/notices/${event.noticeId}`)}
-                    >
-                      보기
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteEvent(event.id)}
-                    >
-                      삭제
-                    </Button>
-                  </div>
+                </button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(`/notices/${event.noticeId}`)}
+                  >
+                    보기
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteEvent(event.id)}
+                  >
+                    삭제
+                  </Button>
                 </div>
-              ))}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       {/* 이벤트 상세 모달 */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">일정 상세</h3>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="rounded p-1 hover:bg-gray-100"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+        <Dialog
+          open={!!selectedEvent}
+          onOpenChange={(open) => {
+            if (!open) setSelectedEvent(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>일정 상세</DialogTitle>
+              <DialogDescription>
+                저장된 일정을 확인하고 관리할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
             <div className="space-y-3">
               <div>
                 <div className="text-sm font-medium text-gray-700">제목</div>
@@ -332,7 +384,7 @@ export default function CalendarPage() {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex gap-2">
+            <DialogFooter>
               <Button
                 className="flex-1"
                 onClick={() => {
@@ -350,9 +402,9 @@ export default function CalendarPage() {
               >
                 삭제
               </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       <BottomNav />

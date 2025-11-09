@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { Notice } from "@/types/notices";
 import { Button } from "@/components/ui/button";
-import { saveCalendarEvent } from "@/lib/calendarStorage";
+import { useCalendarStore } from "@/stores/useCalendarStore";
 
 /**
  * 캘린더 추가 버튼
@@ -16,6 +16,7 @@ export function CalendarButton({
   label?: string;
 }) {
   const [saved, setSaved] = React.useState(false);
+  const addEvent = useCalendarStore((state) => state.addEvent);
 
   if (!notice) return null;
 
@@ -40,23 +41,22 @@ export function CalendarButton({
   const eventEndDate = isValidEnd ? endDate : null;
 
   const handleClick = () => {
-    try {
-      saveCalendarEvent({
-        noticeId: notice.id,
-        title: notice.title || "공지사항",
-        startDate: eventStartDate,
-        endDate: eventEndDate,
-      });
-      
+    const result = addEvent({
+      noticeId: notice.id,
+      title: notice.title || "공지사항",
+      startDate: eventStartDate,
+      endDate: eventEndDate,
+      source: "manual",
+    });
+
+    if (result.status === "duplicate") {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      
-      // 캘린더 페이지 업데이트를 위한 이벤트 발생
-      window.dispatchEvent(new Event("calendar-updated"));
-    } catch (error) {
-      console.error("Failed to save calendar event:", error);
-      alert("캘린더에 추가하는 중 오류가 발생했습니다.");
+      return;
     }
+
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   return (

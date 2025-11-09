@@ -1,25 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller, FormProvider } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import {
-  ALLOWED_GRADES,
-  ALL_ALLOWED_KEYWORDS,
-  GENDER_OPTIONS,
-  INCOME_OPTIONS,
-  KEYWORDS_TREE,
-  MILITARY_OPTIONS,
-  PARENTS_WITHOUT_DETAIL,
-  TESTS,
-  TOP_LEVEL_KEYWORDS,
-  createEmptyLanguageScores,
-  type LanguageScores,
-  type TestKey,
-} from "@/lib/profileConfig";
+import { ALL_ALLOWED_KEYWORDS, createEmptyLanguageScores } from "@/lib/profileConfig";
+import type { TestKey } from "@/lib/profileConfig";
 import { useMajors } from "@/hooks/useMajors";
+import type { ProfileFormValues } from "@/types/profile";
+import { ProfileBasicFields } from "@/components/profile/ProfileBasicFields";
+import { ProfileAdditionalFields } from "@/components/profile/ProfileAdditionalFields";
+import { ProfileKeywordSelector } from "@/components/profile/ProfileKeywordSelector";
+import { ProfileLanguageFields } from "@/components/profile/ProfileLanguageFields";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FieldError } from "@/components/profile/FieldError";
 
 /* =========================================
  * 환경 설정
@@ -33,24 +30,6 @@ type RegisterInputs = {
   email: string;
   password: string;
   passwordConfirm: string;
-};
-
-type ProfileInputs = {
-  // 기본 정보(필수)
-  gender: typeof GENDER_OPTIONS[number]["value"];
-  age: string;
-  grade: (typeof ALLOWED_GRADES)[number];
-  college: string;
-  major: string;
-
-  // 상세 정보(선택)
-  military_service: typeof MILITARY_OPTIONS[number]["value"];
-  income_bracket: string;
-  gpa: string;
-  languageScores: LanguageScores;
-
-  // 키워드(필수)
-  keywords: string[];
 };
 
 /* =========================================
@@ -72,44 +51,6 @@ const safeJson = async (res: Response) => {
     return null;
   }
 };
-
-/* =========================================
- * 모달 컴포넌트 (키워드 상세 선택)
- * ========================================= */
-function Modal({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  if (!open) return null;
-  return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <h3 className="text-base font-semibold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-sm"
-            aria-label="닫기"
-          >
-            닫기
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 /* =========================================
  * 메인 페이지
@@ -139,7 +80,7 @@ function RegisterInner() {
   });
 
   // ---------- 2~4단계: 프로필 ----------
-  const profileForm = useForm<ProfileInputs>({
+  const profileForm = useForm<ProfileFormValues>({
     defaultValues: {
       gender: "prefer_not_to_say",
       age: "",
@@ -157,29 +98,6 @@ function RegisterInner() {
 
   // 단과대/전공
   const { data: majorsData = [], isLoading: majorsLoading } = useMajors();
-  const colleges = useMemo(() => majorsData.map((i) => i.college), [majorsData]);
-  const selectedCollege = profileForm.watch("college");
-  const majorsOfSelectedCollege = useMemo(() => {
-    const found = majorsData.find((i) => i.college === selectedCollege);
-    return found?.majors ?? [];
-  }, [majorsData, selectedCollege]);
-
-  // 키워드 모달 상태
-  const [keywordModalParent, setKeywordModalParent] = useState<string | null>(null);
-  const openKeywordModal = (parent: string) => {
-    const children = KEYWORDS_TREE[parent] ?? [];
-    const noDetail =
-      children.length === 0 || PARENTS_WITHOUT_DETAIL.includes(parent);
-
-    if (noDetail) {
-      const set = new Set(profileForm.getValues("keywords"));
-      set.has(parent) ? set.delete(parent) : set.add(parent);
-      profileForm.setValue("keywords", Array.from(set), { shouldValidate: true });
-      return; // 모달 열지 않음
-    }
-    setKeywordModalParent(parent);
-  };
-  const closeKeywordModal = () => setKeywordModalParent(null);
 
   // ---------- handlers ----------
   const handleSubmitAccount = accountForm.handleSubmit(async (values) => {
@@ -355,78 +273,6 @@ function RegisterInner() {
     }
   };
 
-  // 단계별 프론트 유효성
-  const validateStep2 = async () => {
-    const { gender, age, grade, college, major } = profileForm.getValues();
-    let valid = true;
-    if (!gender) {
-      profileForm.setError("gender", { type: "validate", message: "성별을 선택해주세요." });
-      valid = false;
-    }
-    const ageNum = Number(age);
-    if (!age || Number.isNaN(ageNum) || ageNum < 15 || ageNum > 100) {
-      profileForm.setError("age", {
-        type: "validate",
-        message: "나이는 15~100 사이의 숫자로 입력해주세요.",
-      });
-      valid = false;
-    }
-    if (!grade || Number.isNaN(Number(grade)) || Number(grade) < 1 || Number(grade) > 6) {
-      profileForm.setError("grade", {
-        type: "validate",
-        message: "학년은 1~6 사이에서 선택해주세요.",
-      });
-      valid = false;
-    }
-    if (!college) {
-      profileForm.setError("college", { type: "validate", message: "단과대를 선택해주세요." });
-      valid = false;
-    }
-    if (!major) {
-      profileForm.setError("major", { type: "validate", message: "전공을 선택해주세요." });
-      valid = false;
-    }
-    return valid;
-  };
-
-  const validateStep3 = async () => {
-    const { gpa, income_bracket } = profileForm.getValues();
-    let valid = true;
-    if (gpa) {
-      const gpaNum = Number(gpa);
-      if (Number.isNaN(gpaNum) || gpaNum < 0 || gpaNum > 4.5) {
-        profileForm.setError("gpa", {
-          type: "validate",
-          message: "GPA는 0.00~4.50 사이의 값이어야 합니다.",
-        });
-        valid = false;
-      }
-    }
-    if (income_bracket !== "") {
-      const inc = Number(income_bracket);
-      if (Number.isNaN(inc) || inc < 0 || inc > 10) {
-        profileForm.setError("income_bracket", {
-          type: "validate",
-          message: "소득 분위는 0~10 사이에서 선택해주세요.",
-        });
-        valid = false;
-      }
-    }
-    return valid;
-  };
-
-  const validateStep4 = async () => {
-    const { keywords } = profileForm.getValues();
-    if (!keywords || keywords.length < 1) {
-      profileForm.setError("keywords", {
-        type: "validate",
-        message: "관심 키워드를 최소 1개 이상 선택해주세요.",
-      });
-      return false;
-    }
-    return true;
-  };
-
   /* =========================================
    * 렌더
    * ========================================= */
@@ -457,10 +303,10 @@ function RegisterInner() {
             <form onSubmit={handleSubmitAccount} className="space-y-4">
               {/* 이메일 */}
               <div>
-                <label className="block text-sm text-gray-700 font-medium mb-1">이메일</label>
-                <input
+                <Label htmlFor="register-email">이메일</Label>
+                <Input
+                  id="register-email"
                   type="email"
-                  className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   placeholder="you@yonsei.ac.kr"
                   {...accountForm.register("email", { required: "이메일을 입력해주세요." })}
                 />
@@ -469,10 +315,10 @@ function RegisterInner() {
 
               {/* 비밀번호 */}
               <div>
-                <label className="block text-sm text-gray-700 font-medium mb-1">비밀번호</label>
-                <input
+                <Label htmlFor="register-password">비밀번호</Label>
+                <Input
+                  id="register-password"
                   type="password"
-                  className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   placeholder="8자 이상"
                   {...accountForm.register("password", {
                     required: "비밀번호를 입력해주세요.",
@@ -484,10 +330,10 @@ function RegisterInner() {
 
               {/* 비밀번호 확인 */}
               <div>
-                <label className="block text-sm text-gray-700 font-medium mb-1">비밀번호 확인</label>
-                <input
+                <Label htmlFor="register-password-confirm">비밀번호 확인</Label>
+                <Input
+                  id="register-password-confirm"
                   type="password"
-                  className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   placeholder="다시 입력"
                   {...accountForm.register("passwordConfirm", {
                     required: "비밀번호를 다시 입력해주세요.",
@@ -497,13 +343,9 @@ function RegisterInner() {
                 <FieldError message={accountForm.formState.errors.passwordConfirm?.message} />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-300 text-white font-medium py-2 rounded-lg text-sm transition-colors"
-              >
+              <Button type="submit" disabled={loading} className="w-full">
                 {loading ? "처리 중..." : "다음으로"}
-              </button>
+              </Button>
             </form>
 
             <p className="text-center text-sm text-gray-500 mt-4">
@@ -519,461 +361,107 @@ function RegisterInner() {
         {step === 2 && (
           <>
             <h1 className="text-2xl font-semibold mb-2 text-center">2단계: 기본 정보</h1>
+            <p className="text-sm text-gray-600 mb-4 text-center">
+              맞춤 공지 추천을 위해 최소 정보를 입력해주세요.
+            </p>
             <FormProvider {...profileForm}>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
                   profileForm.clearErrors();
-                  if (await validateStep2()) setStep(3);
+                  const valid = await profileForm.trigger([
+                    "gender",
+                    "age",
+                    "grade",
+                    "college",
+                    "major",
+                  ]);
+                  if (valid) setStep(3);
                 }}
                 className="space-y-4"
               >
-                {/* 성별 */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-1">성별 (필수)</label>
-                  <select
-                    className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                    {...profileForm.register("gender", { required: "성별을 선택해주세요." })}
-                  >
-                    {GENDER_OPTIONS.map((g) => (
-                      <option key={g.value} value={g.value}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldError message={profileForm.formState.errors.gender?.message} />
-                </div>
-
-                {/* 나이 */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-1">나이 (필수)</label>
-                  <input
-                    type="number"
-                    min={15}
-                    max={100}
-                    inputMode="numeric"
-                    className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                    placeholder="예: 23"
-                    {...profileForm.register("age", { required: "나이를 입력해주세요." })}
-                  />
-                  <FieldError message={profileForm.formState.errors.age?.message} />
-                </div>
-
-                {/* 학년 */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-1">학년 (필수)</label>
-                  <select
-                    className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                    {...profileForm.register("grade", { required: "학년을 선택해주세요." })}
-                  >
-                    {ALLOWED_GRADES.map((g) => (
-                      <option key={g} value={g}>
-                        {g}학년
-                      </option>
-                    ))}
-                  </select>
-                  <FieldError message={profileForm.formState.errors.grade?.message} />
-                </div>
-
-                {/* 단과대 */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-1">단과대학 (필수)</label>
-                  <select
-                    disabled={majorsLoading}
-                    className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 disabled:bg-gray-100"
-                    {...profileForm.register("college", { required: "단과대를 선택해주세요." })}
-                    onChange={(e) => {
-                      profileForm.setValue("college", e.target.value);
-                      profileForm.setValue("major", "");
-                    }}
-                  >
-                    <option value="">
-                      {majorsLoading ? "불러오는 중..." : "선택하세요"}
-                    </option>
-                    {colleges.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldError message={profileForm.formState.errors.college?.message} />
-                </div>
-
-                {/* 전공 */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-1">전공 (필수)</label>
-                  <select
-                    disabled={!selectedCollege}
-                    className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 disabled:bg-gray-100"
-                    {...profileForm.register("major", { required: "전공을 선택해주세요." })}
-                  >
-                    <option value="">
-                      {selectedCollege ? "전공 선택" : "먼저 단과대를 선택"}
-                    </option>
-                    {majorsOfSelectedCollege.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldError message={profileForm.formState.errors.major?.message} />
-                </div>
+                <ProfileBasicFields form={profileForm} majors={majorsData} majorsLoading={majorsLoading} />
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 rounded-lg text-sm transition-colors"
-                  >
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setStep(1)}>
                     이전
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg text-sm transition-colors"
-                  >
+                  </Button>
+                  <Button type="submit" className="w-full">
                     다음
-                  </button>
+                  </Button>
                 </div>
               </form>
             </FormProvider>
           </>
         )}
 
-        {/* ---------- 3단계: 상세 정보(선택) ---------- */}
         {step === 3 && (
           <>
             <h1 className="text-2xl font-semibold mb-2 text-center">3단계: 상세 정보</h1>
+            <p className="text-sm text-gray-600 mb-4 text-center">
+              선택 정보지만 입력하면 맞춤 추천의 정확도가 높아집니다.
+            </p>
             <FormProvider {...profileForm}>
               <form
-                onSubmit={async (e) => {
+                onSubmit={(e) => {
                   e.preventDefault();
-                  profileForm.clearErrors();
-                  if (await validateStep3()) setStep(4);
+                  setStep(4);
                 }}
                 className="space-y-4"
               >
-                {/* GPA */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-1">학점(GPA) (선택)</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="예: 3.75"
-                    className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                    {...profileForm.register("gpa")}
-                  />
-                  <FieldError message={profileForm.formState.errors.gpa?.message} />
-                </div>
-
-                {/* 병역 / 소득 */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-700 font-medium mb-1">병역 (선택)</label>
-                    <select
-                      className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                      {...profileForm.register("military_service")}
-                    >
-                      {MILITARY_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 font-medium mb-1">소득 분위 (선택)</label>
-                    <select
-                      className="w-full rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                      {...profileForm.register("income_bracket")}
-                    >
-                      <option value="">선택 안 함</option>
-                      {INCOME_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                    <FieldError message={profileForm.formState.errors.income_bracket?.message} />
-                  </div>
-                </div>
-
-                {/* 어학 점수 */}
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-2">어학 점수 (선택)</label>
-                  <div className="space-y-2">
-                    {TESTS.map(({ key, label }) => (
-                      <div key={key} className="flex items-center gap-3">
-                        <Controller
-                          name={`languageScores.${key}.enabled` as const}
-                          control={profileForm.control}
-                          render={({ field }) => (
-                            <label className="inline-flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                checked={field.value}
-                                ref={field.ref}
-                              />
-                              <span className="text-sm text-gray-800">{label}</span>
-                            </label>
-                          )}
-                        />
-                        <Controller
-                          name={`languageScores.${key}.score` as const}
-                          control={profileForm.control}
-                          render={({ field }) => (
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="점수 입력"
-                              className="flex-1 rounded-lg bg-white px-3 py-2 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 disabled:bg-gray-100"
-                              disabled={
-                                !profileForm.watch(`languageScores.${key}.enabled` as const)
-                              }
-                              {...field}
-                            />
-                          )}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <ProfileAdditionalFields form={profileForm} />
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStep(2)}
-                    className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 rounded-lg text-sm transition-colors"
-                  >
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setStep(2)}>
                     이전
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg text-sm transition-colors"
-                  >
+                  </Button>
+                  <Button type="submit" className="w-full">
                     다음
-                  </button>
+                  </Button>
                 </div>
               </form>
             </FormProvider>
           </>
         )}
 
-        {/* ---------- 4단계: 키워드(필수) ---------- */}
         {step === 4 && (
           <>
             <h1 className="text-2xl font-semibold mb-2 text-center">4단계: 키워드 설정</h1>
+            <p className="text-sm text-gray-600 mb-4 text-center">
+              관심 키워드를 선택하면 맞춤 추천의 정확도가 향상됩니다.
+            </p>
             <FormProvider {...profileForm}>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  profileForm.clearErrors();
-                  if (await validateStep4()) await submitProfileToServer();
+                  const currentKeywords = profileForm.getValues("keywords") ?? [];
+                  if (currentKeywords.length === 0) {
+                    profileForm.setError("keywords", {
+                      type: "validate",
+                      message: "키워드를 최소 1개 이상 선택해주세요.",
+                    });
+                    return;
+                  }
+                  await submitProfileToServer();
                 }}
                 className="space-y-4"
               >
-                <div>
-                  <label className="block text-sm text-gray-700 font-medium mb-2">
-                    관심 키워드 (필수 · 최소 1개)
-                  </label>
+                <ProfileKeywordSelector form={profileForm} />
+                <ProfileLanguageFields form={profileForm} />
 
-                  {/* 대분류 버튼들 */}
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {TOP_LEVEL_KEYWORDS.map((parent) => (
-                      <button
-                        type="button"
-                        key={parent}
-                        onClick={() => openKeywordModal(parent)}
-                        className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      >
-                        {parent}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* 선택된 키워드 미리보기 */}
-                  <SelectedKeywordsPreview
-                    keywords={profileForm.watch("keywords")}
-                    onRemove={(kw) => {
-                      const current = profileForm.getValues("keywords");
-                      profileForm.setValue(
-                        "keywords",
-                        current.filter((k) => k !== kw),
-                        { shouldValidate: true }
-                      );
-                    }}
-                  />
-
-                  <FieldError message={profileForm.formState.errors.keywords?.message} />
-                </div>
-
-                {/* 버튼: 이전 / 완료 */}
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 rounded-lg text-sm transition-colors"
-                  >
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setStep(3)}>
                     이전
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-300 text-white font-medium py-2 rounded-lg text-sm transition-colors"
-                  >
-                    {loading ? "저장 중..." : "완료하고 시작하기"}
-                  </button>
+                  </Button>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "제출 중..." : "가입 완료"}
+                  </Button>
                 </div>
               </form>
             </FormProvider>
-
-            {/* 세부 키워드 모달 */}
-            <Modal
-              open={!!keywordModalParent}
-              title={`${keywordModalParent ?? ""} 세부 키워드 선택`}
-              onClose={closeKeywordModal}
-            >
-              {keywordModalParent && (
-                <KeywordModalContent
-                  parent={keywordModalParent}
-                  keywords={profileForm.watch("keywords")}
-                  onToggleAll={() => {
-                    const children = KEYWORDS_TREE[keywordModalParent] ?? [];
-                    const allSelected =
-                      children.length > 0 &&
-                      children.every((c) =>
-                        profileForm.getValues("keywords").includes(c)
-                      );
-                    if (allSelected) {
-                      profileForm.setValue(
-                        "keywords",
-                        profileForm
-                          .getValues("keywords")
-                          .filter((k) => !children.includes(k)),
-                        { shouldValidate: true }
-                      );
-                    } else {
-                      const set = new Set(profileForm.getValues("keywords"));
-                      children.forEach((c) => set.add(c));
-                      profileForm.setValue("keywords", Array.from(set), {
-                        shouldValidate: true,
-                      });
-                    }
-                  }}
-                  onToggleOne={(child) => {
-                    if (!ALL_ALLOWED_KEYWORDS.includes(child)) return;
-                    const set = new Set(profileForm.getValues("keywords"));
-                    set.has(child) ? set.delete(child) : set.add(child);
-                    profileForm.setValue("keywords", Array.from(set), {
-                      shouldValidate: true,
-                    });
-                  }}
-                />
-              )}
-            </Modal>
           </>
         )}
       </div>
     </main>
-  );
-}
-
-/* =========================================
- * 하위 UI 컴포넌트
- * ========================================= */
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return <p className="mt-1 text-xs text-red-600">{message}</p>;
-}
-
-function SelectedKeywordsPreview({
-  keywords,
-  onRemove,
-}: {
-  keywords: string[];
-  onRemove: (kw: string) => void;
-}) {
-  if (!keywords || keywords.length === 0) {
-    return <p className="text-xs text-gray-500">선택된 키워드가 없습니다.</p>;
-    }
-  return (
-    <div className="flex flex-wrap gap-2">
-      {keywords.map((k) => (
-        <span
-          key={k}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm bg-blue-50 text-blue-700 border border-blue-200"
-        >
-          {k}
-          <button
-            type="button"
-            onClick={() => onRemove(k)}
-            className="text-xs text-blue-600 hover:text-blue-800"
-            aria-label={`${k} 제거`}
-          >
-            ✕
-          </button>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function KeywordModalContent({
-  parent,
-  keywords,
-  onToggleAll,
-  onToggleOne,
-}: {
-  parent: string;
-  keywords: string[];
-  onToggleAll: () => void;
-  onToggleOne: (child: string) => void;
-}) {
-  const children = KEYWORDS_TREE[parent] ?? [];
-  const allSelected =
-    children.length > 0 && children.every((c) => keywords.includes(c));
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-gray-800">{parent} · 세부 키워드</div>
-        {children.length > 0 && (
-          <button
-            type="button"
-            onClick={onToggleAll}
-            className="text-xs px-2 py-1 rounded bg-white border border-gray-300 hover:bg-gray-100"
-          >
-            {allSelected ? "전체 해제" : "전체 선택"}
-          </button>
-        )}
-      </div>
-
-      {children.length === 0 ? (
-        <div className="text-xs text-gray-500">세부 키워드가 없습니다.</div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {children.map((child) => {
-            const selected = keywords.includes(child);
-            return (
-              <button
-                type="button"
-                key={child}
-                onClick={() => onToggleOne(child)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  selected
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                }`}
-                aria-pressed={selected}
-              >
-                {child}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }

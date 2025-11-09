@@ -8,11 +8,13 @@ import type { NoticeItem } from '@/types/notices';
 import { useColleges } from '@/hooks/useColleges';
 import { useNoticeEligibility } from '@/hooks/useNoticeQueries';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { Badge } from '@/components/ui/badge';
 
 type Props = {
   item: NoticeItem;
   dense?: boolean; // 리스트 모드(헤더와 12컬럼 정렬)
   onClick?: (id: string) => void;
+  recommended?: boolean;
 };
 
 const INDICATOR_LABELS: Record<NonNullable<NoticeItem['eligibility']>, string> = {
@@ -21,7 +23,7 @@ const INDICATOR_LABELS: Record<NonNullable<NoticeItem['eligibility']>, string> =
   INELIGIBLE: '부적합',
 };
 
-export default function NoticeCard({ item, dense = false, onClick }: Props) {
+export default function NoticeCard({ item, dense = false, onClick, recommended = false }: Props) {
   const { data: colleges } = useColleges();
   const token = useAuthStore((s) => s.token);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -105,6 +107,11 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
       >
         {/* 1️⃣ 제목 (col-span-5) */}
         <div className="col-span-6 flex min-w-0 items-center gap-2">
+          {recommended && (
+            <Badge className="shrink-0 bg-purple-100 text-[10px] font-semibold text-purple-700 border border-purple-200">
+              추천
+            </Badge>
+          )}
           <div className="min-w-0 truncate text-sm font-medium">{item.title}</div>
           {item.read && <span className="text-[10px] text-neutral-400">읽음</span>}
         </div>
@@ -156,6 +163,11 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex min-w-0 items-center gap-2">
+            {recommended && (
+              <Badge className="shrink-0 bg-purple-100 text-[11px] font-semibold text-purple-700 border border-purple-200">
+                추천
+              </Badge>
+            )}
             <h3 className="min-w-0 truncate text-base font-semibold leading-snug">{item.title}</h3>
           </div>
         </div>
@@ -196,7 +208,7 @@ export default function NoticeCard({ item, dense = false, onClick }: Props) {
   );
 }
 
-function getEligibilityVisual(status: NoticeItem['eligibility']) {
+function getEligibilityVisual(status: NoticeItem['eligibility'] | null) {
   switch (status) {
     case 'ELIGIBLE':
       return {
