@@ -3,11 +3,23 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller, FormProvider } from "react-hook-form";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import {
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-} from "@tanstack/react-query";
+  ALLOWED_GRADES,
+  ALL_ALLOWED_KEYWORDS,
+  GENDER_OPTIONS,
+  INCOME_OPTIONS,
+  KEYWORDS_TREE,
+  MILITARY_OPTIONS,
+  PARENTS_WITHOUT_DETAIL,
+  TESTS,
+  TOP_LEVEL_KEYWORDS,
+  createEmptyLanguageScores,
+  type LanguageScores,
+  type TestKey,
+} from "@/lib/profileConfig";
+import { useMajors } from "@/hooks/useMajors";
 
 /* =========================================
  * 환경 설정
@@ -22,84 +34,6 @@ type RegisterInputs = {
   password: string;
   passwordConfirm: string;
 };
-
-const GENDER_OPTIONS = [
-  { value: "male", label: "남성" },
-  { value: "female", label: "여성" },
-  { value: "prefer_not_to_say", label: "응답하지 않음" },
-] as const;
-
-const ALLOWED_GRADES = ["1", "2", "3", "4", "5", "6"] as const;
-
-const MILITARY_OPTIONS = [
-  { value: "", label: "선택 안 함" },
-  { value: "completed", label: "이행(전역)" },
-  { value: "pending", label: "이행 예정" },
-  { value: "exempt", label: "면제" },
-  { value: "n/a", label: "해당 없음" },
-] as const;
-
-const INCOME_OPTIONS = Array.from({ length: 11 }).map((_, i) => ({
-  value: String(i),
-  label: `${i}분위`,
-}));
-
-/* =========================================
- * 4단계 키워드: 대분류(‘#기타’ 제거) → 소분류
- * ========================================= */
-const KEYWORDS_TREE: Record<string, string[]> = {
-  "#학사": [
-    "#소속변경", "#ABEEK", "#신입생", "#S/U", "#교직과정",
-    "#휴학", "#복학", "#수강신청", "#졸업", "#등록금",
-    "#교과목", "#전공과목", "#다전공", "#기타",
-  ],
-  "#장학": [
-    "#가계곤란", "#국가장학", "#근로장학", "#성적우수",
-    "#생활비", "#기타",
-  ],
-  "#취업": [
-    "#채용", "#인턴십", "#현장실습", "#강사", "#조교",
-    "#채용설명회", "#취업특강", "#창업", "#기타",
-  ],
-  "#행사": [
-    "#특강", "#워크숍", "#세미나", "#설명회", "#포럼",
-    "#지원", "#교육", "#프로그램", "#기타",
-  ],
-  "#공모전/대회": [
-    "#공모전", "#경진대회", "#디자인", "#숏폼", "#영상",
-    "#아이디어", "#논문", "#학생설계전공", "#마이크로전공", "#기타",
-  ],
-  "#국제교류": [
-    "#교환학생", "#파견", "#campusasia", "#글로벌",
-    "#단기", "#하계", "#동계", "#어학연수", "#해외봉사",
-    "#일본", "#미국", "#기타",
-  ],
-  "#일반": [],
-};
-
-// 세부 없이 바로 토글로 선택할 대분류(모달 열지 않음)
-const PARENTS_WITHOUT_DETAIL = ["#일반"];
-
-const TOP_LEVEL_KEYWORDS = Object.keys(KEYWORDS_TREE);
-const ALL_ALLOWED_KEYWORDS = TOP_LEVEL_KEYWORDS.reduce<string[]>(
-  (acc, p) => acc.concat(p, KEYWORDS_TREE[p]),
-  []
-);
-
-/** 어학 시험 옵션 */
-const TESTS = [
-  { key: "toeic", label: "영어 · TOEIC" },
-  { key: "toefl", label: "영어 · TOEFL" },
-  { key: "ielts", label: "영어 · IELTS" },
-  { key: "jlpt", label: "일본어 · JLPT" },
-  { key: "hsk", label: "중국어 · HSK" },
-] as const;
-type TestKey = (typeof TESTS)[number]["key"];
-
-type LanguageScores = Record<
-  TestKey,
-  { enabled: boolean; score: string }
->;
 
 type ProfileInputs = {
   // 기본 정보(필수)
@@ -118,8 +52,6 @@ type ProfileInputs = {
   // 키워드(필수)
   keywords: string[];
 };
-
-type CollegeMajorsItem = { college: string; majors: string[] };
 
 /* =========================================
  * 유틸
@@ -140,44 +72,6 @@ const safeJson = async (res: Response) => {
     return null;
   }
 };
-
-/** /meta/majors 응답 유연 파서 */
-function normalizeMajorsResponse(input: any): CollegeMajorsItem[] {
-  if (!input) return [];
-  if (Array.isArray(input) && input.every((x) => typeof x?.college === "string" && Array.isArray(x?.majors))) {
-    return input as CollegeMajorsItem[];
-  }
-  if (!Array.isArray(input) && typeof input === "object") {
-    const entries = Object.entries(input);
-    if (entries.every(([_, v]) => Array.isArray(v))) {
-      return entries.map(([college, majors]) => ({
-        college,
-        majors: (majors as any[]).map(String),
-      }));
-    }
-  }
-  if (Array.isArray(input) && input.every((x) => typeof x === "string")) {
-    return [{ college: "전체 단과대", majors: input as string[] }];
-  }
-  return [];
-}
-
-/* =========================================
- * 데이터 로딩(TanStack Query)
- * ========================================= */
-async function fetchMajors(): Promise<CollegeMajorsItem[]> {
-  const res = await fetch(`${API_BASE}/meta/majors`, { cache: "no-store" });
-  const raw = await safeJson(res);
-  return normalizeMajorsResponse(raw?.items ?? raw);
-}
-
-function useMajors() {
-  return useQuery({
-    queryKey: ["majors"],
-    queryFn: fetchMajors,
-    staleTime: 1000 * 60 * 60 * 24, // 24h 캐시
-  });
-}
 
 /* =========================================
  * 모달 컴포넌트 (키워드 상세 선택)
@@ -256,13 +150,7 @@ function RegisterInner() {
       income_bracket: "",
       gpa: "",
       keywords: [],
-      languageScores: {
-        toeic: { enabled: false, score: "" },
-        toefl: { enabled: false, score: "" },
-        ielts: { enabled: false, score: "" },
-        jlpt: { enabled: false, score: "" },
-        hsk: { enabled: false, score: "" },
-      },
+      languageScores: createEmptyLanguageScores(),
     },
     mode: "onTouched",
   });
