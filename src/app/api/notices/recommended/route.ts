@@ -1,52 +1,52 @@
 // src/app/api/notices/recommended/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { apiGet } from "@/lib/api";
-import { PagedResponse, NoticeItem } from "@/types/notices";
+import { api } from "@/lib/api";
+import type { Notice, Paginated } from "@/types/notices";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    // 1) query 파싱
+    // 1) 쿼리 파싱
     const { searchParams } = new URL(req.url);
-    const limit = searchParams.get("limit") ?? "10";
-    const offset = searchParams.get("offset") ?? "0";
+    const endpoint = `/notices/recommended?${searchParams.toString()}`;
 
-    // 2) 토큰 확보
-    const cookieStore = await cookies();
-    const token = cookieStore.get("DICE_TOKEN")?.value;
-
-    // 3) 추천 공지는 "회원님께 추천!"이라 개인화일 가능성 높음 → requireAuth: true로 간다
-    const data = await apiGet<PagedResponse<NoticeItem>>(
-      "/notices/recommended",
-      {
-        requireAuth: true,
-        token,
-        query: {
-          limit,
-          offset,
-        },
-      }
-    );
-
-    // 4) 성공
-    return NextResponse.json(data);
-  } catch (err: any) {
-    if (err instanceof Error && err.message.includes("NO_AUTH_TOKEN")) {
-      // 로그인 안 된 사용자라면 401로 돌려줌
+    // 2) Authorization 헤더 확인 (추천 공지는 인증 필수)
+    const authToken = req.headers.get("Authorization");
+    if (!authToken) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized: Missing token" },
         { status: 401 }
       );
     }
 
-    // 여기서 만약 백엔드가 진짜로 500을 던졌다면:
-    // 우리는 그대로 502 (Bad Gateway-ish) 정도로 감싸도 되고, 그냥 500 그대로 줘도 됩니다.
+    const headers: Record<string, string> = { Authorization: authToken };
+
+    // 3) 백엔드 호출 (api 인스턴스 사용)
+    const res = await api.get<Paginated<Notice>>(endpoint, { headers });
+
+    // 4) 성공 응답
+    return NextResponse.json(res.data, { status: 200 });
+  } catch (err: any) {
+    // 상세 로깅
+    console.error("[DICE BFF ERROR] /notices/recommended failed:", {
+      status: err?.response?.status,
+      data: JSON.stringify(err?.response?.data, null, 2),
+      url: err?.config?.url,
+      method: err?.config?.method,
+      message: err?.message,
+    });
+
+    const status = err?.response?.status ?? 500;
+    const message =
+      err?.response?.data?.detail ??
+      err?.response?.data?.message ??
+      err?.message ??
+      "Failed to fetch recommended notices";
+
     return NextResponse.json(
-      {
-        error: "Failed to fetch recommended notices",
-        detail: String(err.message ?? err),
-      },
-      { status: 500 }
+      { error: message, status },
+      { status: status >= 400 && status < 600 ? status : 500 }
     );
   }
 }

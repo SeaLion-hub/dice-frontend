@@ -13,7 +13,19 @@ import {
  * props:
  *  - data: NoticeEligibilityResult | undefined
  *  - isLoading: boolean
+ *
+ * 변경점:
+ *  - data가 존재하지만 data.eligibility가 비어있는 엣지케이스도 안전하게 처리하도록 방어 로직 추가
  */
+const ELIGIBILITY_MAP: Record<
+  NonNullable<NoticeEligibilityResult["eligibility"]>,
+  { icon: string; title: string; color: string; badge: string }
+> = {
+  ELIGIBLE:   { icon: "✅", title: "신청 가능", color: "text-green-600",  badge: "bg-green-100 text-green-700" },
+  BORDERLINE: { icon: "⚠️", title: "정보 부족", color: "text-amber-600", badge: "bg-amber-100 text-amber-700" },
+  INELIGIBLE: { icon: "❌", title: "신청 불가", color: "text-red-600",   badge: "bg-red-100 text-red-700" },
+};
+
 export function EligibilityResult({
   data,
   isLoading,
@@ -38,43 +50,23 @@ export function EligibilityResult({
     );
   }
 
-  if (!data) {
+  // ✅ data가 있어도 eligibility가 비어있을 수 있으므로 방어
+  if (!data || !data.eligibility) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>AI 자격 분석 결과</CardTitle>
-          <CardDescription>아직 분석 결과가 없습니다.</CardDescription>
+          <CardDescription>
+            {isLoading ? "분석 중..." : "AI 자격 분석 데이터가 없습니다."}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border px-4 py-3 text-sm text-gray-500">
-            로그인 후 다시 시도하거나, 잠시 뒤 새로고침 해주세요.
-          </div>
-        </CardContent>
       </Card>
     );
   }
 
-  const status = data.eligibility; // 'ELIGIBLE' | 'BORDERLINE' | 'INELIGIBLE'
-  const ui = {
-    ELIGIBLE: {
-      icon: "✅",
-      title: "신청 가능",
-      color: "text-green-600",
-      badge: "bg-green-100 text-green-700",
-    },
-    BORDERLINE: {
-      icon: "⚠️",
-      title: "정보 부족",
-      color: "text-amber-600",
-      badge: "bg-amber-100 text-amber-700",
-    },
-    INELIGIBLE: {
-      icon: "❌",
-      title: "신청 불가",
-      color: "text-red-600",
-      badge: "bg-red-100 text-red-700",
-    },
-  }[status];
+  // 여기까지 왔다면 data와 data.eligibility가 모두 존재
+  const status = data.eligibility;
+  const ui = ELIGIBILITY_MAP[status];
 
   return (
     <Card>

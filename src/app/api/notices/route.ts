@@ -5,21 +5,25 @@ import type { Notice, Paginated } from '@/types/notices';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/notices -> DICE GET /notices (쿼리스트링 패스스루)
+// GET /api/notices -> DICE GET /notices (쿼리스트링 패스스루 + 인증 헤더 전달)
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = url.search; // ?page=1&size=20 ...
+    const search = url.search; // ?q=...&sort=...&my=true...
     const endpoint = `/notices${search}`;
 
-    const res = await api.get<Paginated<Notice>>(endpoint);
+    // Authorization 헤더 전달 (my=true 등 맞춤 공지용)
+    const authToken = request.headers.get('Authorization');
+    const headers: Record<string, string> = {};
+    if (authToken) headers['Authorization'] = authToken;
+
+    const res = await api.get<Paginated<Notice>>(endpoint, { headers });
 
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
-    // 🔎 상세 로깅: [Object] 대신 실제 JSON 문자열을 출력
     console.error('[DICE BFF ERROR] Failed fetching /notices:', {
       status: error?.response?.status,
-      data: JSON.stringify(error?.response?.data, null, 2), // 핵심 수정
+      data: JSON.stringify(error?.response?.data, null, 2),
       headers: error?.response?.headers,
       url: error?.config?.url,
       method: error?.config?.method,

@@ -16,17 +16,16 @@ export const useNoticeDetail = (id: string | null) => {
   });
 };
 
-/** 자격 검증: GET → POST 로 전환 */
+/** 자격 검증: GET → POST */
 export const useNoticeEligibility = (id: string | null) => {
   const { token } = useNoticePreferences();
 
   return useQuery({
     queryKey: ['notice', id, 'eligibility'],
     queryFn: async () => {
-      // POST 요청으로 변경, 빈 바디 전송
       const res = await axios.post<NoticeEligibilityResult>(
         `/api/notices/${id}/verify`,
-        {},
+        {}, // POST라도 바디가 필요한 백엔드가 있어 빈 객체 전송
         {
           headers: {
             Authorization: `Bearer ${token}`,

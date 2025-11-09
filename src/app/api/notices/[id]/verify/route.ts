@@ -5,10 +5,9 @@ import type { NoticeEligibilityResult } from '@/types/notices';
 
 export const dynamic = 'force-dynamic';
 
-// GET → POST 전환 + URL에서 id 직접 파싱
 export async function POST(
   request: NextRequest,
-  _context: { params: { id: string } } // 사용 안 함 (호환만 유지)
+  _context: { params: { id: string } } // 호환용, 미사용
 ) {
   try {
     // URL에서 /api/notices/{id}/verify 형태의 {id} 추출
@@ -18,10 +17,7 @@ export async function POST(
     const id = idx >= 0 && segments[idx + 1] ? segments[idx + 1] : undefined;
 
     if (!id) {
-      return NextResponse.json(
-        { error: 'Notice id is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Notice id is required' }, { status: 400 });
     }
 
     const authToken = request.headers.get('Authorization');
@@ -32,13 +28,11 @@ export async function POST(
       );
     }
 
-    // 백엔드도 POST 사용, 빈 body 전송
+    // 백엔드에도 POST로 위임 (빈 바디)
     const res = await api.post<NoticeEligibilityResult>(
       `/notices/${encodeURIComponent(id)}/verify-eligibility`,
       {},
-      {
-        headers: { Authorization: authToken },
-      }
+      { headers: { Authorization: authToken } }
     );
 
     return NextResponse.json(res.data, { status: 200 });
