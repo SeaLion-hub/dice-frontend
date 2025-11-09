@@ -1,260 +1,173 @@
-"use client";
+// src/components/notices/NoticeCard.tsx
+'use client';
 
-import Link from "next/link";
-import { useState } from "react";
-import {
-  Bookmark,
-  MoreVertical,
-  EyeOff,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
-import { NoticeItem } from "@/types/notices";
-import { format, formatDistanceToNow, differenceInDays } from "date-fns";
-import { ko } from "date-fns/locale";
+import React from 'react';
+import clsx from 'clsx';
+import { Calendar, MapPin, Tag } from 'lucide-react';
+import type { NoticeItem } from '@/types/notices';
 
-type NoticeCardProps = {
+type Props = {
   item: NoticeItem;
-  dense?: boolean;
-  onToggleRead?: (id: string | number, nextRead: boolean) => void;
-  onSaveForLater?: (id: string | number) => void;
-  onHide?: (id: string | number) => void;
-  onToggleBookmark?: (id: string | number) => void;
+  dense?: boolean; // 리스트 모드(헤더와 12컬럼 정렬)
+  onClick?: (id: string) => void;
 };
 
-function getRelativeOrAbsoluteDate(dateISO?: string | null) {
-  if (!dateISO) return null;
-  const d = new Date(dateISO);
-  const daysDiff = differenceInDays(new Date(), d);
-  if (daysDiff <= 7) {
-    return formatDistanceToNow(d, { addSuffix: true, locale: ko });
+function formatDate(iso?: string) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    // 로컬 시간대 기준 YYYY-MM-DD HH:mm
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+  } catch {
+    return iso;
   }
-  return format(d, "yyyy.MM.dd");
 }
 
-export function NoticeCard({
-  item,
-  dense = false,
-  onToggleRead,
-  onSaveForLater,
-  onHide,
-  onToggleBookmark,
-}: NoticeCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const unread = !item.read;
-  const formattedDate = getRelativeOrAbsoluteDate(item.posted_at);
-
-  // ============================
-  // DENSE MODE (리스트형 / 헤더 정렬 일치)
-  // ============================
+export default function NoticeCard({ item, dense = false, onClick }: Props) {
   if (dense) {
+    // 12 컬럼 그리드: [제목 5][대분류 2][소분류 2][출처 1][게시일 1][적합도 1]
     return (
-      <Link
-        href={`/notices/${item.id}`}
-        onClick={(e) => {
-          if (menuOpen) e.preventDefault(); // 메뉴 열릴 때 링크 이동 방지
-        }}
-        className={`grid grid-cols-12 items-center gap-4 px-4 py-3 text-[13px] transition-colors ${
-          unread ? "bg-blue-50/40 hover:bg-blue-50" : "hover:bg-gray-50"
-        }`}
+      <div
+        className={clsx(
+          'grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-xl',
+          'bg-white/70 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800',
+          'hover:bg-white dark:hover:bg-neutral-900 transition-colors'
+        )}
+        role="button"
+        onClick={() => onClick?.(item.id)}
       >
         {/* 1️⃣ 제목 (col-span-5) */}
-        <div className="col-span-5 flex min-w-0 items-center gap-2">
-          {unread && (
-            <span className="relative flex h-2 w-2 flex-shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
-            </span>
+        <div className="col-span-5 truncate">
+          <div className="text-sm font-medium truncate">{item.title}</div>
+          {item.read && (
+            <span className="text-[10px] text-neutral-400">읽음</span>
           )}
-          <span className="truncate font-medium text-gray-900 group-hover:underline">
-            {item.title}
-          </span>
         </div>
 
         {/* 2️⃣ 대분류 (col-span-2) */}
-        <div className="col-span-2">
-          {item.hashtags_ai ? (
-            <span className="truncate rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-              #{item.hashtags_ai}
-            </span>
-          ) : (
-            <span className="text-gray-300">—</span>
-          )}
+        <div className="col-span-2 flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300 truncate">
+          <Tag className="w-3 h-3" />
+          <span className="truncate">{item.hashtags_ai ?? '-'}</span>
         </div>
 
-        {/* 3️⃣ 소분류 (col-span-2) - [수정됨] */}
-        <div className="col-span-2">
-          {item.detailed_hashtags?.[0] ? (
-            <span className="truncate rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-              #{item.detailed_hashtags[0]}
-            </span>
-          ) : (
-            <span className="text-gray-300">—</span>
-          )}
+        {/* 3️⃣ 소분류 (col-span-2) */}
+        <div className="col-span-2 text-xs text-neutral-700 dark:text-neutral-300 truncate">
+          {Array.isArray(item.detailed_hashtags) && item.detailed_hashtags.length > 0
+            ? item.detailed_hashtags.join(', ')
+            : '-'}
         </div>
 
         {/* 4️⃣ 출처 (col-span-1) */}
-        <div className="col-span-1 truncate text-gray-600">
-          {item.source_college || "—"}
+        <div className="col-span-1 flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300 truncate">
+          <MapPin className="w-3 h-3" />
+          <span className="truncate">{item.source_college ?? '-'}</span>
         </div>
 
-        {/* 5️⃣ 등록일 (col-span-1) */}
-        <div className="col-span-1 min-w-16 text-right text-gray-500">
-          {formattedDate ?? "—"}
+        {/* 5️⃣ 게시일 (col-span-1) */}
+        <div className="col-span-1 flex items-center gap-1 text-[11px] text-neutral-500 truncate">
+          <Calendar className="w-3 h-3" />
+          <span className="truncate">{formatDate(item.posted_at) || '-'}</span>
         </div>
 
-        {/* 6️⃣ 관리 (col-span-1) */}
-        <div className="relative col-span-1 flex justify-center">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setMenuOpen((v) => !v);
-            }}
-            className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-          >
-            <MoreVertical size={16} />
-          </button>
-
-          {menuOpen && (
-            <div
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
-            >
-              <button
-                onClick={() => onToggleRead?.(item.id, !item.read)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-              >
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>{unread ? "읽음으로 표시" : "안 읽음으로 표시"}</span>
-              </button>
-              <button
-                onClick={() => onSaveForLater?.(item.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-              >
-                <Clock className="h-4 w-4 text-amber-500" />
-                <span>나중에 보기</span>
-              </button>
-              <button
-                onClick={() => onHide?.(item.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-              >
-                <EyeOff className="h-4 w-4 text-gray-400" />
-                <span>이 공지 숨기기</span>
-              </button>
-              <button
-                onClick={() => onToggleBookmark?.(item.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-              >
-                <Bookmark className="h-4 w-4 text-blue-500" />
-                <span>북마크</span>
-              </button>
-            </div>
+        {/* 6️⃣ 적합도 (col-span-1) - 작업 3 교체 블록 */}
+        <div className="relative col-span-1 flex justify-center items-center">
+          {item.eligibility === 'ELIGIBLE' && (
+            <span className="h-3 w-3 rounded-full bg-emerald-500" title="적합" />
+          )}
+          {item.eligibility === 'BORDERLINE' && (
+            <span className="h-3 w-3 rounded-full bg-yellow-500" title="부분 적합" />
+          )}
+          {item.eligibility === 'INELIGIBLE' && (
+            <span className="h-3 w-3 rounded-full bg-red-500" title="부적합" />
+          )}
+          {!item.eligibility && (
+            <span className="h-3 w-3 rounded-full bg-gray-200" title="미판단" />
           )}
         </div>
-      </Link>
+      </div>
     );
   }
 
-  // ============================
-  // CARD MODE (기존 디자인)
-  // ============================
+  // 카드 모드(기본)
   return (
-    <article className="group relative flex rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:bg-gray-50">
-      <div className="mr-3 flex w-3 flex-col pt-1">
-        {unread ? (
-          <span className="mt-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-blue-100" />
-        ) : (
-          <span className="mt-1 h-2 w-2 rounded-full bg-transparent" />
+    <div
+      className={clsx(
+        'rounded-2xl p-4 border',
+        'bg-white/80 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800',
+        'hover:shadow-sm hover:bg-white dark:hover:bg-neutral-900 transition'
+      )}
+      role="button"
+      onClick={() => onClick?.(item.id)}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-base font-semibold leading-snug">{item.title}</h3>
+        <div className="flex items-center gap-2 shrink-0">
+          {item.read && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
+              읽음
+            </span>
+          )}
+          {item.hashtags_ai && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+              {item.hashtags_ai}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {item.raw_text && (
+        <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-3">
+          {item.raw_text}
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-600 dark:text-neutral-400">
+        <div className="flex items-center gap-1">
+          <MapPin className="w-3 h-3" />
+          <span>{item.source_college ?? '출처 미상'}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Calendar className="w-3 h-3" />
+          <span>{formatDate(item.posted_at) || '게시일 미상'}</span>
+        </div>
+        {Array.isArray(item.detailed_hashtags) && item.detailed_hashtags.length > 0 && (
+          <div className="flex items-center gap-1">
+            <Tag className="w-3 h-3" />
+            <span>{item.detailed_hashtags.join(', ')}</span>
+          </div>
         )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between text-xs leading-tight text-gray-500">
-          <span>{item.source_college}</span>
-          <time className="text-gray-400">{formattedDate}</time>
-        </div>
-
-        <Link
-          href={`/notices/${item.id}`}
-          className="mt-2 block text-base font-medium leading-snug text-gray-900 line-clamp-2"
-        >
-          {item.title}
-        </Link>
-
-        <div className="mt-3 flex items-center justify-between">
-          <button
-            aria-label="북마크"
-            onClick={() => onToggleBookmark?.(item.id)}
-            className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-          >
-            <Bookmark size={16} />
-          </button>
-
-          <div className="hidden items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 lg:flex">
-            <button
-              onClick={() => onToggleRead?.(item.id, !item.read)}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              <span>{unread ? "읽음으로" : "안 읽음으로"}</span>
-            </button>
-            <button
-              onClick={() => onSaveForLater?.(item.id)}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <Clock className="h-3.5 w-3.5 text-amber-500" />
-              <span>나중에</span>
-            </button>
-            <button
-              onClick={() => onHide?.(item.id)}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <EyeOff className="h-3.5 w-3.5 text-gray-400" />
-              <span>숨기기</span>
-            </button>
-          </div>
-
-          <div className="relative lg:hidden">
-            <button
-              aria-label="더 보기"
-              onClick={() => setMenuOpen((o) => !o)}
-              className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-            >
-              <MoreVertical size={16} />
-            </button>
-
-            {menuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
-                <button
-                  onClick={() => onToggleRead?.(item.id, !item.read)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>{unread ? "읽음으로" : "안 읽음으로"}</span>
-                </button>
-                <button
-                  onClick={() => onSaveForLater?.(item.id)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-                >
-                  <Clock className="h-4 w-4 text-amber-500" />
-                  <span>나중에 보기</span>
-                </button>
-                <button
-                  onClick={() => onHide?.(item.id)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
-                >
-                  <EyeOff className="h-4 w-4 text-gray-400" />
-                  <span>숨기기</span>
-                </button>
-              </div>
-            )}
-          </div>
+        <div className="ml-auto flex items-center gap-1">
+          {item.eligibility === 'ELIGIBLE' && (
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              적합
+            </span>
+          )}
+          {item.eligibility === 'BORDERLINE' && (
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+              부분 적합
+            </span>
+          )}
+          {item.eligibility === 'INELIGIBLE' && (
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+              부적합
+            </span>
+          )}
+          {!item.eligibility && (
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+              미판단
+            </span>
+          )}
         </div>
       </div>
-    </article>
+    </div>
   );
 }

@@ -4,16 +4,18 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import classNames from "classnames";
 import type { Notice } from "@/types/notices";
-import { NoticeSort } from "@/types/notices";
-
+// import { NoticeSort } from "@/types/notices"; // ⛔️ 삭제
 import RecommendedRow from "@/components/reco/RecommendedRow";
-import { NoticeCard } from "@/components/notices/NoticeCard";
+import NoticeCard from "@/components/notices/NoticeCard"; // ✅ default import
 import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
 import { EmptyState } from "@/components/common/EmptyState";
 import BottomNav from "@/components/nav/BottomNav";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
-import { useNoticePreferences } from "@/hooks/useNoticePreferences";
+import {
+  useNoticePreferences,
+  NoticeSort, // ✅ 여기서 가져옴
+} from "@/hooks/useNoticePreferences";
 
 function hasToken() {
   if (typeof window === "undefined") return false;
@@ -35,20 +37,14 @@ export default function NoticesPage() {
     setFilters,
   } = useNoticePreferences();
 
-  // ✅ query 객체 생성
-  //  - q: 빈 문자열이면 undefined → URLSearchParams에서 생략
-  //  - my: 'all' 탭이면 undefined → 생략
-  //  - sourceCollege: 백엔드 alias에 맞춤
-  //  - dateRange: 'all'이면 undefined → 생략 (422 방지)
   const query = useMemo(() => {
     return {
       q: searchQuery || undefined,
-      sort: sort, // 기본값은 훅에서 'recent'
+      sort: sort,
       my: tab === "my" ? true : undefined,
       category: filters?.category,
       sourceCollege: filters?.sourceCollege,
-      dateRange:
-        filters?.dateRange === "all" ? undefined : filters?.dateRange,
+      dateRange: filters?.dateRange === "all" ? undefined : filters?.dateRange,
     };
   }, [searchQuery, sort, tab, filters]);
 
@@ -107,7 +103,6 @@ export default function NoticesPage() {
     e.preventDefault();
   }, []);
 
-  // ✅ Optional Chaining 적용 (filters가 undefined여도 안전)
   const appliedFilterCount = useMemo(() => {
     let count = 0;
     if (filters?.category) count++;
@@ -134,10 +129,6 @@ export default function NoticesPage() {
     }
     fetchColleges();
   }, []);
-
-  const renderEmptyState = () => (
-    <EmptyState message="조건에 맞는 공지가 없어요. 필터를 초기화하고 다시 확인해보세요. 🤔" />
-  );
 
   const renderBottomLoader = () => {
     if (!isFetchingNextPage) return null;
@@ -178,7 +169,7 @@ export default function NoticesPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
             <form
               onSubmit={handleSearchSubmit}
-              className="flex w-full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm md:w-64"
+              className="flex w/full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm md:w-64"
             >
               <span className="mr-2 text-gray-400">🔍</span>
               <input
@@ -196,7 +187,16 @@ export default function NoticesPage() {
             </form>
 
             <select
-              value={filters?.category ?? ''}
+              value={sort || ""} // ✨ 안전 처리
+              onChange={handleSortChange}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
+            >
+              <option value="recent">최신순</option>
+              <option value="popular">인기순</option>
+            </select>
+
+            <select
+              value={filters?.category || ""} // ✨ 안전 처리
               onChange={(e) => handleFilterChange("category", e.target.value)}
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
@@ -208,7 +208,7 @@ export default function NoticesPage() {
             </select>
 
             <select
-              value={filters?.sourceCollege ?? ''}
+              value={filters?.sourceCollege || ""} // ✨ 안전 처리
               onChange={(e) =>
                 handleFilterChange("sourceCollege", e.target.value)
               }
@@ -223,21 +223,19 @@ export default function NoticesPage() {
             </select>
 
             <select
-              value={filters?.dateRange ?? 'all'}
+              value={filters?.dateRange || ""} // ✨ 안전 처리
               onChange={(e) => handleFilterChange("dateRange", e.target.value)}
               className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
             >
-              <option value="all">전체 기간</option>
+              <option value="">전체 기간</option>
               <option value="1d">최근 1일</option>
               <option value="1w">최근 1주</option>
               <option value="1m">최근 1달</option>
             </select>
 
-            {mounted && appliedFilterCount > 0 && (
-              <span className="text-xs text-gray-500">
-                필터 적용 {appliedFilterCount}개
-              </span>
-            )}
+            <span className="text-[11px] text-gray-500">
+              필터 {appliedFilterCount}개 적용
+            </span>
           </div>
         </div>
       </div>
@@ -246,14 +244,11 @@ export default function NoticesPage() {
 
       {/* ====== 리스트 컨테이너 ====== */}
       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
-        {/* 헤더: grid-cols-12 (새 칼럼 구조) */}
+        {/* 헤더 */}
         <div className="hidden border-b border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
-          {/* 제목: 5칸 */}
           <div className="col-span-5">제목</div>
-          {/* 대분류: 2칸, 소분류: 2칸 */}
           <div className="col-span-2">대분류</div>
           <div className="col-span-2">소분류</div>
-          {/* 출처: 1칸, 등록일: 1칸, 관리: 1칸 */}
           <div className="col-span-1">출처</div>
           <div className="col-span-1 text-right">등록일</div>
           <div className="col-span-1 text-center">관리</div>
@@ -262,7 +257,9 @@ export default function NoticesPage() {
         {/* 바디 */}
         <section className="divide-y divide-gray-200">
           {isLoading &&
-            Array.from({ length: 6 }).map((_, i) => <NoticeCardSkeleton key={i} />)}
+            Array.from({ length: 6 }).map((_, i) => (
+              <NoticeCardSkeleton key={i} />
+            ))}
 
           {isError && (
             <div className="p-4 text-sm text-red-800">
@@ -274,15 +271,13 @@ export default function NoticesPage() {
           )}
 
           {!isLoading && !isError && items.length === 0 && (
-            <div className="p-6">{renderEmptyState()}</div>
+            <div className="p-6">
+              <EmptyState message="조건에 맞는 공지가 없어요. 필터를 초기화하고 다시 확인해보세요. 🤔" />
+            </div>
           )}
 
           {items.map((notice: Notice) => (
-            <NoticeCard
-              key={notice.id}
-              item={notice}
-              dense
-            />
+            <NoticeCard key={notice.id} item={notice} dense />
           ))}
         </section>
       </div>

@@ -1,56 +1,64 @@
 // src/types/notices.ts
 
-// ===== 페이지 상태 관련 타입 =====
-export type NoticeTab = 'all' | 'my';
-
-// [변경] 백엔드 규격에 맞춰 created_at/popular → recent/oldest
-export type NoticeSort = 'recent' | 'oldest';
-
-export type NoticeDateRange = 'all' | '1d' | '1w' | '1m';
-
-export interface NoticeFilters {
-  category?: string;
-  sourceCollege?: string;
-  dateRange?: NoticeDateRange;
-}
-
-// ===== 공지/자격 타입 =====
-export type NoticeStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
-
+// 공지 작성자 정보
 export interface NoticeAuthor {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
 }
+
+// 공지 상태
+export type NoticeStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+
+// 적합도 표시에 사용
+export type Eligibility = 'ELIGIBLE' | 'BORDERLINE' | 'INELIGIBLE';
 
 // 프로젝트 내에서 사용하는 공지 타입
 export interface NoticeItem {
   id: string;
   title: string;
-  body: string;                 // 기존 필드 유지
-  raw_text: string;             // 정제된 본문 텍스트
+  body: string;
+  raw_text: string;
   status: NoticeStatus;
-  createdAt: string;            // ISO datetime
-  updatedAt: string;            // ISO datetime
+  createdAt: string;
+  updatedAt: string;
   tags?: string[];
   author?: NoticeAuthor;
-  qualification_ai: Record<string, any> | null; // 캘린더 일정 추출용
+  qualification_ai: Record<string, any> | null;
+
+  // UI 표시 필드
+  read: boolean;                 // 읽음 여부
+  hashtags_ai?: string;          // 대분류 (예: "#학사")
+  detailed_hashtags?: string[];  // 소분류 배열 (예: ["#수강신청"])
+  source_college?: string;       // 출처(단과대/부서 등)
+  posted_at?: string;            // 공지 게시 시각(ISO)
+  eligibility?: Eligibility;     // 적합도 점 표시
 }
 
-export type Eligibility = 'ELIGIBLE' | 'BORDERLINE' | 'INELIGIBLE';
+// Notice를 사용하는 코드와의 호환을 위한 별칭
+export type Notice = NoticeItem;
 
+// 적합도 결과 타입
 export interface NoticeEligibilityResult {
   noticeId: string;
   eligibility: Eligibility;
-  reason: string;
-  checkedAt: string; // ISO datetime
+  checkedAt?: string;   // 분석 시각
+  reasons?: string[];   // 판단 사유 목록
+  // 필요 시 세부 필드 추가 가능
 }
 
-export interface Paginated<T> {
+// 제네릭 페이지네이션 응답
+export interface PagedResponse<T> {
   items: T[];
-  page: number;
-  size: number;
   total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
-// 하위 호환: Notice 별칭
-export type Notice = NoticeItem;
+// PagedResponse 별칭 (라우트에서 Paginated를 임포트하는 코드 호환)
+export type Paginated<T> = PagedResponse<T>;
+
+// 공지 목록 응답 별칭
+export type NoticesResponse = PagedResponse<NoticeItem>;

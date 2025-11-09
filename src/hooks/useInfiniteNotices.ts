@@ -1,61 +1,111 @@
 // src/hooks/useInfiniteNotices.ts
-import { useInfiniteQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import type { Notice, Paginated } from '@/types/notices';
-import { useNoticePreferences } from '@/hooks/useNoticePreferences';
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import type { Notice } from "@/types/notices";
 
-export interface UseInfiniteNoticesOptions {
-  pageSize?: number;
-  query?: Record<string, string | number | boolean | undefined>;
-}
-
-const fetchNoticesPage = async ({
-  pageParam,
-  pageSize,
-  query,
-  token,
-}: {
-  pageParam: number;
-  pageSize: number;
-  query?: UseInfiniteNoticesOptions['query'];
-  token: string | null;
-}) => {
-  const q = new URLSearchParams();
-  q.set('page', String(pageParam));
-  q.set('size', String(pageSize));
-
-  if (query) {
-    Object.entries(query).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && String(v).length > 0) {
-        q.set(k, String(v));
-      }
-    });
-  }
-
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await axios.get<Paginated<Notice>>(`/api/notices?${q.toString()}`, {
-    headers,
-  });
-  return res.data;
+type QueryInput = {
+  q?: string;
+  sort?: string;
+  my?: boolean;
+  category?: string;
+  sourceCollege?: string;
+  dateRange?: string;
 };
 
-export function useInfiniteNotices(options: UseInfiniteNoticesOptions = {}) {
-  const { pageSize = 20, query } = options;
-  const { token } = useNoticePreferences(); // 토큰 가져오기
+type UseInfiniteNoticesParams = {
+  pageSize?: number;
+  query: QueryInput;
+};
+
+type IPagedResponse<T> = {
+  items: T[];
+  total?: number;
+  nextOffset?: number;
+  hasNextPage?: boolean;
+};
+
+function toUrlSearchParams(params: Record<string, unknown>): URLSearchParams {
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    if (typeof v === "string" && v.trim() === "") return;
+    if (typeof v === "boolean") {
+      // boolean true만 파라미터로 포함 (false는 생략)
+      if (v) sp.set(k, "true");
+      return;
+    }
+    sp.set(k, String(v));
+  });
+  return sp;
+}
+
+export function useInfiniteNotices({ pageSize = 20, query }: UseInfiniteNoticesParams) {
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE ?? "";
+
+  const queryKey = useMemo(() => {
+    // query 객체를 안정적으로 키에 반영
+    return ["notices", { pageSize, ...query }];
+  }, [pageSize, query]);
+
+  // ✨ v5 규약에 맞춰 pageParam: unknown 처리
+  const fetchPage = async (
+    { pageParam }: { pageParam: unknown }
+  ): Promise<IPagedResponse<Notice>> => {
+    const offset = Number(pageParam) || 0;
+
+    const params = toUrlSearchParams({
+      limit: pageSize,
+      offset,
+      q: query.q,
+      sort: query.sort,
+      my: query.my,
+      category: query.category,
+      sourceCollege: query.sourceCollege,
+      dateRange: query.dateRange,
+    });
+
+    const url = `${baseUrl}/notices?${params.toString()}`;
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) {
+      throw new Error(`Failed to load notices: ${res.status}`);
+    }
+
+    // 백엔드 응답 예시 가정:
+    // { items: Notice[], total: number, nextOffset?: number, hasNextPage?: boolean }
+    const data = (await res.json()) as IPagedResponse<Notice>;
+
+    // nextOffset/hasNextPage 중 하나만 오는 경우 대비해 보강
+    const computedHasNext =
+      typeof data.hasNextPage === "boolean"
+        ? data.hasNextPage
+        : typeof data.nextOffset === "number";
+
+    return {
+      items: data.items ?? [],
+      total: data.total,
+      nextOffset:
+        typeof data.nextOffset === "number"
+          ? data.nextOffset
+          : (offset + (data.items?.length ?? 0)) || undefined,
+      hasNextPage: computedHasNext,
+    };
+  };
 
   return useInfiniteQuery({
-    queryKey: ['notices', query, pageSize, token], // 토큰 포함
-    queryFn: ({ pageParam = 1 }) =>
-      fetchNoticesPage({ pageParam, pageSize, query, token }),
-    initialPageParam: 1,
+    queryKey,
+    queryFn: fetchPage,
+    initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      const { page, size, total } = lastPage ?? { page: 1, size: pageSize, total: 0 };
-      const loaded = page * size;
-      return loaded < total ? page + 1 : undefined;
+      if (lastPage?.hasNextPage && typeof lastPage.nextOffset === "number") {
+        return lastPage.nextOffset;
+      }
+      // items가 pageSize만큼 왔으면 다음 페이지가 있을 가능성
+      if ((lastPage?.items?.length ?? 0) >= pageSize) {
+        return (lastPage?.nextOffset ?? 0) + pageSize;
+      }
+      return undefined;
     },
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 30,
   });
 }

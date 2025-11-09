@@ -33,7 +33,7 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      // ✅ JSON 형식으로 복구 (email/password)
+      // JSON 형식으로 로그인 요청
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: {
@@ -53,17 +53,14 @@ export default function LoginPage() {
         let detail: string;
 
         if (typeof errorContent === "string") {
-          // 1) 문자열 메시지
           detail = errorContent;
         } else if (errorContent) {
-          // 2) 객체/배열인 경우 직렬화
           try {
             detail = JSON.stringify(errorContent);
           } catch {
             detail = "로그인에 실패했습니다.";
           }
         } else {
-          // 3) 본문 없이 상태코드만 온 경우
           detail = `로그인 실패 (${res.status})`;
         }
 
@@ -78,9 +75,26 @@ export default function LoginPage() {
         throw new Error("서버에서 access_token을 받지 못했습니다.");
       }
 
-      // 토큰 저장 (훅에서 localStorage/cookie 처리)
+      // 1) LocalStorage 저장 (기존 로직)
       setToken(accessToken);
 
+      // 2) [추가] API 라우트가 읽을 수 있도록 쿠키 설정
+      //    - 이름: DICE_TOKEN
+      //    - 유효기간: 1일 (86400초)
+      //    - 전체 경로 적용
+      //    - SameSite=Lax (기본 보안)
+      //    - HTTPS 환경이면 Secure 플래그도 부여
+      const attrs = [
+        `path=/`,
+        `max-age=86400`,
+        `samesite=lax`,
+        ...(typeof window !== "undefined" && window.location.protocol === "https:"
+          ? ["secure"]
+          : []),
+      ].join("; ");
+      document.cookie = `DICE_TOKEN=${accessToken}; ${attrs}`;
+
+      // 로그인 후 이동
       router.replace("/notices");
     } catch (err: any) {
       console.error("login error:", err);

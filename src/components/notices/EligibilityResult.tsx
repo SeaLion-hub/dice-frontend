@@ -13,9 +13,6 @@ import {
  * props:
  *  - data: NoticeEligibilityResult | undefined
  *  - isLoading: boolean
- *
- * 변경점:
- *  - data가 존재하지만 data.eligibility가 비어있는 엣지케이스도 안전하게 처리하도록 방어 로직 추가
  */
 const ELIGIBILITY_MAP: Record<
   NonNullable<NoticeEligibilityResult["eligibility"]>,
@@ -50,7 +47,7 @@ export function EligibilityResult({
     );
   }
 
-  // ✅ data가 있어도 eligibility가 비어있을 수 있으므로 방어
+  // data가 있어도 eligibility가 비어있을 수 있으므로 방어
   if (!data || !data.eligibility) {
     return (
       <Card>
@@ -64,7 +61,6 @@ export function EligibilityResult({
     );
   }
 
-  // 여기까지 왔다면 data와 data.eligibility가 모두 존재
   const status = data.eligibility;
   const ui = ELIGIBILITY_MAP[status];
 
@@ -97,9 +93,18 @@ export function EligibilityResult({
         {/* 사유 영역 */}
         <div className="mt-3">
           <div className="mb-1 text-sm font-medium text-gray-700">분석 사유</div>
-          <p className="whitespace-pre-wrap rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-800">
-            {data.reason || "사유 정보가 제공되지 않았습니다."}
-          </p>
+
+          {Array.isArray(data.reasons) && data.reasons.length > 0 ? (
+            <ul className="list-inside list-disc space-y-1 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-800">
+              {data.reasons.map((reasonText, i) => (
+                <li key={i}>{reasonText}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="whitespace-pre-wrap rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-800">
+              사유 정보가 제공되지 않았습니다.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

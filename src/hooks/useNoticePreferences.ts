@@ -1,10 +1,10 @@
 // src/hooks/useNoticePreferences.ts
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type {
-  NoticeTab,
-  NoticeSort,      // 'recent' | 'oldest'
-  NoticeFilters,
-} from '@/types/notices';
+type NoticeTab = 'all' | 'my';
+type NoticeSort = 'recent' | 'oldest';
+type NoticeFilters = Record<string, unknown>;
+
+import type { Notice } from '@/types/notices';
 
 function parseCookie(name: string) {
   if (typeof document === 'undefined') return null;
