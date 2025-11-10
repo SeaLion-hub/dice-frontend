@@ -56,7 +56,7 @@ export function ProfileAdditionalFields({ form }: Props) {
           render={({ field }) => (
             <Select
               value={field.value || "__none"}
-              oonValueChange={(value: string) => field.onChange(value === "__none" ? "" : value)}
+              onValueChange={(value: string) => field.onChange(value === "__none" ? "" : value)}
             >
               <SelectTrigger id="income_bracket">
                 <SelectValue placeholder="소득 분위" />

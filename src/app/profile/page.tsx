@@ -261,6 +261,8 @@ export default function ProfilePage() {
   const handleLogout = () => {
     if (confirm("로그아웃하시겠습니까?")) {
       logout();
+      document.cookie =
+        "DICE_TOKEN=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
       router.push("/login");
     }
   };
