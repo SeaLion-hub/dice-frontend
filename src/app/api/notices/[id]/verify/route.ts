@@ -66,6 +66,12 @@ export async function POST(
           { status: 422 }
         );
       }
+      if (status === 401) {
+        return NextResponse.json(
+          { error: '로그인이 만료되었거나 사용자 정보를 찾을 수 없습니다.' },
+          { status: 401 }
+        );
+      }
       console.error('[DICE BFF ERROR] Failed to load profile for eligibility', {
         status,
         data: JSON.stringify(profileError?.response?.data, null, 2),
