@@ -5,15 +5,15 @@ import classNames from "classnames";
 import Link from "next/link";
 
 import RecommendedRow from "@/components/reco/RecommendedRow";
-import { NoticeCard } from "@/components/notices/NoticeCard";
+import NoticeCard from "@/components/notices/NoticeCard";
 import BottomNav from "@/components/nav/BottomNav";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 
 import {
   useNoticePreferences,
-  NoticeTab,
   NoticeSort,
 } from "@/hooks/useNoticePreferences";
+import type { Notice } from "@/types/notices";
 
 export default function NoticesPage() {
   /**
@@ -35,6 +35,20 @@ export default function NoticesPage() {
    * - 지금은 기존 훅 시그니처 유지 (tab, limit)
    * - 추후 훅을 확장해서 sort / q / filters를 백엔드 파라미터로 보내면 됨
    */
+  const noticeQuery = useMemo(() => {
+    return {
+      q: searchQuery || undefined,
+      sort,
+      my: tab === "my" ? true : undefined,
+      category: filters.category || undefined,
+      sourceCollege: filters.sourceCollege || undefined,
+      dateRange:
+        filters.dateRange && filters.dateRange !== "all"
+          ? filters.dateRange
+          : undefined,
+    };
+  }, [searchQuery, sort, tab, filters]);
+
   const {
     data,
     fetchNextPage,
@@ -44,14 +58,8 @@ export default function NoticesPage() {
     isError,
     refetch,
   } = useInfiniteNotices({
-    tab,
-    limit: 20,
-    // TODO: 백엔드 연결 시 여기에
-    // q: searchQuery,
-    // sort,
-    // category_ai: filters.category,
-    // source_college: filters.sourceCollege,
-    // date_range: filters.dateRange,
+    query: noticeQuery,
+    pageSize: 20,
   });
 
   /**
@@ -78,7 +86,8 @@ export default function NoticesPage() {
    * FLATTEN PAGES
    */
   const items = useMemo(() => {
-    return data?.items ?? [];
+    if (!data) return [] as Notice[];
+    return data.pages.flatMap((page) => page?.items ?? []) as Notice[];
   }, [data]);
 
   /**
@@ -114,7 +123,7 @@ export default function NoticesPage() {
    * UI HELPERS
    */
   const renderEmptyState = () => {
-    if (tab === "custom") {
+    if (tab === "my") {
       return (
         <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-700">
           <div className="font-medium text-gray-900">
@@ -183,10 +192,10 @@ export default function NoticesPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
             <button
-              onClick={() => setTab("custom")}
+              onClick={() => setTab("my")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
-                tab === "custom"
+                tab === "my"
                   ? "bg-gray-100 font-medium"
                   : "text-gray-600"
               )}
@@ -280,16 +289,16 @@ export default function NoticesPage() {
               aria-label="게시일 범위 필터"
             >
               <option value="all">전체 기간</option>
-              <option value="7d">최근 7일</option>
-              <option value="30d">최근 30일</option>
-              <option value="90d">최근 90일</option>
+              <option value="1d">최근 1일</option>
+              <option value="1w">최근 1주</option>
+              <option value="1m">최근 1개월</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* 맞춤 공지 탭 상단 추천 캐러셀 */}
-      {tab === "custom" && <RecommendedRow />}
+      {tab === "my" && <RecommendedRow />}
 
       {/* 공지 카드 리스트 */}
       <section className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -312,7 +321,7 @@ export default function NoticesPage() {
 
         {!isLoading && !isError && items.length === 0 && renderEmptyState()}
 
-        {items.map((notice) => (
+        {items.map((notice: Notice) => (
           <NoticeCard key={notice.id} item={notice} />
         ))}
       </section>
