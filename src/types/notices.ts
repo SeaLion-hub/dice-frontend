@@ -69,6 +69,8 @@ export interface NoticeItem {
   source_college?: string;       // 출처(단과대/부서 등) - deprecated: college_key 사용
   posted_at?: string;            // 공지 게시 시각(ISO)
   eligibility?: Eligibility;     // 적합도 점 표시
+  suitability?: string | null;   // 추천 적합도(맞춤 추천용)
+  reason?: string | null;        // 추천 사유(맞춤 추천용)
 }
 
 // Notice를 사용하는 코드와의 호환을 위한 별칭
