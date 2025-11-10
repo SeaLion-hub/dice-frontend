@@ -5,7 +5,7 @@ export type NoticeSort = "recent" | "oldest";
 export type DateRange = "" | "1d" | "1w" | "1m" | "all";
 
 export type NoticeFilters = {
-  category?: string;        // e.g. "장학" | "채용" ...
+  categories?: string[];    // 예: ["#장학", "#수강신청"]
   sourceCollege?: string;   // e.g. "eng", "biz" ...
   dateRange?: DateRange;    // "" | "1d" | "1w" | "1m" | "all"
 };
@@ -25,7 +25,7 @@ type NoticePreferencesActions = {
   setSort: (s: NoticeSort) => void;
   /**
    * 부분 업데이트를 안전하게 병합합니다.
-   * 예) setFilters({ category: "장학" })
+   * 예) setFilters({ categories: ["#장학", "#취업"] })
    */
   setFilters: (partial: Partial<NoticeFilters> | ((prev: NoticeFilters) => Partial<NoticeFilters>)) => void;
 };
@@ -37,7 +37,7 @@ const defaultState: NoticePreferencesState = {
   searchQuery: "",
   sort: "recent",
   filters: {
-    category: "",
+    categories: [],
     sourceCollege: "",
     dateRange: "all",
   },
@@ -64,7 +64,7 @@ function writeToStorage(next: NoticePreferencesState) {
     searchQuery: next.searchQuery,
     sort: next.sort,
     filters: {
-      category: next.filters?.category ?? "",
+      categories: Array.isArray(next.filters?.categories) ? next.filters.categories : [],
       sourceCollege: next.filters?.sourceCollege ?? "",
       dateRange: (next.filters?.dateRange ?? "all") as DateRange,
     },
@@ -93,6 +93,20 @@ export function useNoticePreferences(): NoticePreferencesState & NoticePreferenc
         ...(initFromStorage.filters || {}),
       },
     };
+
+    // 레거시 category(string) → categories(string[]) 마이그레이션
+    const legacyCategory = (initFromStorage as any)?.filters?.category;
+    if (legacyCategory && !initial.filters.categories?.length) {
+      if (Array.isArray(legacyCategory)) {
+        initial.filters.categories = legacyCategory.filter(Boolean);
+      } else if (typeof legacyCategory === "string" && legacyCategory.trim()) {
+        initial.filters.categories = [legacyCategory.trim()];
+      }
+    }
+
+    if (!Array.isArray(initial.filters.categories)) {
+      initial.filters.categories = [];
+    }
 
     initRef.current = initial;
   }

@@ -7,7 +7,7 @@ type QueryInput = {
   q?: string;
   sort?: NoticeSort;
   my?: boolean;
-  category?: string;
+  hashtags?: string[];
   sourceCollege?: string;
   dateRange?: DateRange | undefined; // "all"은 서버 미전송
 };
@@ -51,12 +51,17 @@ async function fetchNotices({
   params.set("offset", String(offset));
   params.set("limit", String(pageSize));
 
-  const { q, sort, my, category, sourceCollege, dateRange } = query;
+  const { q, sort, my, hashtags, sourceCollege, dateRange } = query;
 
   if (q) params.set("q", q);
   if (sort) params.set("sort", sort);
   if (my) params.set("my", "true");
   if (sourceCollege) params.set("college", sourceCollege);
+  if (hashtags && Array.isArray(hashtags)) {
+    hashtags
+      .filter((tag) => typeof tag === "string" && tag.trim().length > 0)
+      .forEach((tag) => params.append("hashtags", tag.trim()));
+  }
 
   // dateRange를 date_from/date_to로 변환
   if (dateRange && dateRange !== "all") {

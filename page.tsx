@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import RecommendedRow from "@/components/reco/RecommendedRow";
 import NoticeCard from "@/components/notices/NoticeCard";
+import { KeywordFilterSelector } from "@/components/notices/KeywordFilterSelector";
 import BottomNav from "@/components/nav/BottomNav";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 
@@ -40,7 +41,10 @@ export default function NoticesPage() {
       q: searchQuery || undefined,
       sort,
       my: tab === "my" ? true : undefined,
-      category: filters.category || undefined,
+      hashtags:
+        filters.categories && filters.categories.length > 0
+          ? filters.categories
+          : undefined,
       sourceCollege: filters.sourceCollege || undefined,
       dateRange:
         filters.dateRange && filters.dateRange !== "all"
@@ -95,7 +99,7 @@ export default function NoticesPage() {
    * (단순 상태 변경만 하고, 실제 fetch 파라미터 연결은 위 useInfiniteNotices TODO 참고)
    */
   const handleFilterChange = useCallback(
-    (key: "category" | "sourceCollege" | "dateRange", value: string) => {
+    (key: "sourceCollege" | "dateRange", value: string) => {
       setFilters({ [key]: value });
       // 추후: refetch(); or reset pagination & refetch
     },
@@ -156,7 +160,7 @@ export default function NoticesPage() {
         <button
           onClick={() => {
             setFilters({
-              category: "",
+              categories: [],
               sourceCollege: "",
               dateRange: "all",
             });
@@ -249,19 +253,13 @@ export default function NoticesPage() {
             </select>
 
             {/* category_ai 필터 */}
-            <select
-              value={filters.category}
-              onChange={(e) => handleFilterChange("category", e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
-              aria-label="카테고리 필터"
-            >
-              <option value="">전체 카테고리</option>
-              <option value="장학">장학</option>
-              <option value="채용">채용</option>
-              <option value="행사">행사/설명회</option>
-              <option value="대외활동">대외활동</option>
-              {/* 실제로는 hashtags_ai / category_ai 값으로 채우면 됨 */}
-            </select>
+            <div className="min-w-[12rem] rounded-lg border border-gray-200 bg-white px-2 py-2">
+              <p className="mb-2 text-xs font-semibold text-gray-900">카테고리</p>
+              <KeywordFilterSelector
+                value={filters.categories ?? []}
+                onChange={(next) => setFilters({ categories: next })}
+              />
+            </div>
 
             {/* source_college 필터 */}
             <select

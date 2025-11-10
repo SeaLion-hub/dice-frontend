@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import BottomNav from "@/components/nav/BottomNav";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
+import { KeywordFilterSelector } from "@/components/notices/KeywordFilterSelector";
 import {
   useNoticePreferences,
   type NoticeSort,
@@ -42,7 +43,7 @@ export default function NoticesPage() {
 
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState<NoticeFilters>({
-    category: "",
+    categories: [],
     sourceCollege: "",
     dateRange: "all",
   });
@@ -62,7 +63,7 @@ export default function NoticesPage() {
   useEffect(() => {
     if (!filterDialogOpen) return;
     setDraftFilters({
-      category: filters?.category ?? "",
+      categories: filters?.categories ?? [],
       sourceCollege: filters?.sourceCollege ?? "",
       dateRange: (filters?.dateRange ?? "all") as DateRange,
     });
@@ -75,7 +76,7 @@ export default function NoticesPage() {
       sort: sort,
       // 로그인 상태에서만 my=true를 붙여 401 방지
       my: tab === "my" && isAuthed ? true : undefined,
-      category: filters?.category,
+      hashtags: filters?.categories && filters.categories.length > 0 ? filters.categories : undefined,
       sourceCollege: filters?.sourceCollege,
       dateRange: filters?.dateRange === "all" ? undefined : filters?.dateRange,
     };
@@ -131,7 +132,7 @@ export default function NoticesPage() {
 
   const handleFilterApply = useCallback(() => {
     setFilters({
-      category: draftFilters.category ?? "",
+      categories: Array.isArray(draftFilters.categories) ? draftFilters.categories : [],
       sourceCollege: draftFilters.sourceCollege ?? "",
       dateRange: (draftFilters.dateRange ?? "all") as DateRange,
     });
@@ -140,7 +141,7 @@ export default function NoticesPage() {
   }, [draftFilters, draftSort, setFilters, setSort]);
 
   const handleFilterReset = useCallback(() => {
-    setDraftFilters({ category: "", sourceCollege: "", dateRange: "all" });
+    setDraftFilters({ categories: [], sourceCollege: "", dateRange: "all" });
     setDraftSort("recent");
   }, []);
 
@@ -150,7 +151,7 @@ export default function NoticesPage() {
 
   const appliedFilterCount = useMemo(() => {
     let count = 0;
-    if (filters?.category) count++;
+    if (filters?.categories && filters.categories.length > 0) count++;
     if (filters?.sourceCollege) count++;
     if (filters?.dateRange && filters?.dateRange !== "all") count++;
     return count;
@@ -276,19 +277,12 @@ export default function NoticesPage() {
 
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-gray-900">카테고리</p>
-                      <select
-                        value={draftFilters.category ?? ""}
-                        onChange={(e) =>
-                          setDraftFilters((prev) => ({ ...prev, category: e.target.value }))
+                      <KeywordFilterSelector
+                        value={draftFilters.categories ?? []}
+                        onChange={(next) =>
+                          setDraftFilters((prev) => ({ ...prev, categories: next }))
                         }
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">전체</option>
-                        <option value="장학">장학</option>
-                        <option value="채용">채용</option>
-                        <option value="행사">행사/설명회</option>
-                        <option value="대외활동">대외활동</option>
-                      </select>
+                      />
                     </div>
 
                     <div className="space-y-1">
