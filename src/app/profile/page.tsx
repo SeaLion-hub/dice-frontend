@@ -40,6 +40,7 @@ interface UserProfile {
   gender?: (typeof GENDER_OPTIONS)[number]["value"] | null;
   age: number | null;
   major: string | null;
+  college: string | null;
   grade: number | null;
   keywords: string[] | null;
   military_service: (typeof MILITARY_OPTIONS)[number]["value"] | null;
@@ -151,8 +152,25 @@ export default function ProfilePage() {
     },
   });
 
+  const lastHydratedRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    lastHydratedRef.current = null;
+  }, [token]);
+
   React.useEffect(() => {
     if (profile === undefined) return;
+
+    // majors 정보가 아직 로딩 중이면 기존 값 유지
+    if (majorsLoading) return;
+
+    const signature = profile
+      ? `${profile.user_id}-${profile.updated_at ?? "no-updated-at"}-${majorsData.length}`
+      : `empty-${majorsData.length}`;
+
+    if (lastHydratedRef.current === signature) {
+      return;
+    }
 
     if (profile === null) {
       form.reset({
@@ -167,13 +185,12 @@ export default function ProfilePage() {
         keywords: [],
         languageScores: createEmptyLanguageScores(),
       });
+      lastHydratedRef.current = signature;
       return;
     }
 
     const sanitizedKeywords = sanitizeKeywords(profile.keywords || []);
-    const languageScoresFromProfile = buildLanguageScoresFromProfile(
-      profile.language_scores
-    );
+    const languageScoresFromProfile = buildLanguageScoresFromProfile(profile.language_scores);
     const gradeString = ALLOWED_GRADES.includes(
       String(profile.grade ?? "1") as (typeof ALLOWED_GRADES)[number]
     )
@@ -181,11 +198,17 @@ export default function ProfilePage() {
       : "1";
     const ageString = profile.age != null ? String(profile.age) : "";
 
+      const derivedCollege =
+        profile.college ??
+        majorsData.find((item) => item.majors.includes(profile.major ?? ""))?.college ??
+        form.getValues("college") ??
+        "";
+
     form.reset({
       gender: profile.gender ?? "prefer_not_to_say",
       age: ageString,
       grade: gradeString,
-      college: form.getValues("college"),
+      college: derivedCollege,
       major: profile.major ?? "",
       military_service: profile.military_service ?? "",
       income_bracket:
@@ -194,19 +217,9 @@ export default function ProfilePage() {
       keywords: sanitizedKeywords,
       languageScores: languageScoresFromProfile,
     });
-  }, [profile, form]);
 
-  React.useEffect(() => {
-    if (!profile || !profile.major || majorsData.length === 0) return;
-    const currentCollege = form.getValues("college");
-    if (currentCollege) return;
-    const matched = majorsData.find((item) =>
-      item.majors.includes(profile.major ?? "")
-    );
-    if (matched) {
-      form.setValue("college", matched.college);
-    }
-  }, [profile, majorsData, form]);
+    lastHydratedRef.current = signature;
+  }, [profile, majorsData, majorsLoading, form]);
 
   React.useEffect(() => {
     if (!token) {
@@ -301,13 +314,11 @@ export default function ProfilePage() {
     const payload: Record<string, unknown> = {
       age: ageNum,
       major: data.major,
+      college: data.college,
       grade: gradeNum,
       keywords: sanitizedKeywords,
+      gender: data.gender ?? "prefer_not_to_say",
     };
-
-    if (data.gender && data.gender !== "prefer_not_to_say") {
-      payload.gender = data.gender;
-    }
 
     if (data.military_service) {
       payload.military_service = data.military_service;

@@ -14,6 +14,36 @@ export type NoticeStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED';
 // 적합도 표시에 사용
 export type Eligibility = 'ELIGIBLE' | 'BORDERLINE' | 'INELIGIBLE';
 
+export interface NoticeQualificationAIKeyDate {
+  key_date_type?: string | null;
+  key_date?: string | null;
+  keyDateType?: string | null;
+  keyDate?: string | null;
+  type?: string | null;
+  label?: string | null;
+  iso?: string | null;
+  key_date_iso?: string | null;
+  text?: string | null;
+  value?: string | null;
+  type_label?: string | null;
+}
+
+export interface NoticeQualificationAI {
+  target_audience_raw?: string | null;
+  target_audience?: string | null;
+  key_date_type?: string | null;
+  key_date?: string | null;
+  keyDateType?: string | null;
+  keyDate?: string | null;
+  key_dates?: NoticeQualificationAIKeyDate[] | null;
+  keyDates?: NoticeQualificationAIKeyDate[] | null;
+  grade_years?: string | null;
+  gpa?: string | null;
+  language?: string | null;
+  qualifications?: Record<string, any> | null;
+  [key: string]: unknown;
+}
+
 // 프로젝트 내에서 사용하는 공지 타입
 export interface NoticeItem {
   id: string;
@@ -28,7 +58,7 @@ export interface NoticeItem {
   updatedAt: string;
   tags?: string[];
   author?: NoticeAuthor;
-  qualification_ai: Record<string, any> | null;
+  qualification_ai: NoticeQualificationAI | null;
   start_at_ai?: string | null;   // 일정 시작일 (ISO)
   end_at_ai?: string | null;     // 일정 종료일 (ISO)
 

@@ -50,7 +50,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
           name="gender"
           control={form.control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value ?? "prefer_not_to_say"} onValueChange={field.onChange}>
               <SelectTrigger id="gender">
                 <SelectValue placeholder="성별 선택" />
               </SelectTrigger>
@@ -91,7 +91,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
           name="grade"
           control={form.control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value ?? "1"} onValueChange={field.onChange}>
               <SelectTrigger id="grade">
                 <SelectValue placeholder="학년 선택" />
               </SelectTrigger>
@@ -115,7 +115,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
           render={({ field }) => (
             <Select
               value={field.value || "__none"}
-              onValueChange={(value) => {
+              onValueChange={(value: string) => {
                 if (value === "__none") {
                   field.onChange("");
                   form.setValue("major", "", { shouldValidate: true });
@@ -150,7 +150,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
           render={({ field }) => (
             <Select
               value={field.value || "__none"}
-              onValueChange={(value) => {
+              onValueChange={(value: string) => {
                 if (value === "__none") {
                   field.onChange("");
                 } else {
