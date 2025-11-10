@@ -9,8 +9,33 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = url.search; // ?q=...&sort=...&my=true...
-    const endpoint = `/notices${search}`;
+    const paramsMap: Record<string, string | string[]> = {};
+
+    url.searchParams.forEach((value, key) => {
+      if (paramsMap[key] === undefined) {
+        paramsMap[key] = value;
+        return;
+      }
+
+      const existing = paramsMap[key];
+      if (Array.isArray(existing)) {
+        existing.push(value);
+      } else {
+        paramsMap[key] = [existing, value];
+      }
+    });
+
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(paramsMap)) {
+      if (value == null) continue;
+      if (Array.isArray(value)) {
+        value.forEach((v) => searchParams.append(key, v));
+      } else {
+        searchParams.append(key, value);
+      }
+    }
+
+    const endpoint = `/notices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
     // Authorization 헤더 전달 (my=true 등 맞춤 공지용)
     const authToken = request.headers.get('Authorization');
