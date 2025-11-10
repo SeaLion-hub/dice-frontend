@@ -94,20 +94,33 @@ export async function POST(
     );
 
     const backend: any = res.data ?? {};
-    const eligible: boolean = Boolean(backend.eligible);
-    const reason: string = String(backend.reason || "");
+    const eligibility = backend.eligibility ?? (backend.eligible ? "ELIGIBLE" : backend.eligible === false ? "INELIGIBLE" : null);
+    const reasonsList: string[] =
+      Array.isArray(backend.reasons_human) && backend.reasons_human.length > 0
+        ? backend.reasons_human
+        : Array.isArray(backend.reasons)
+        ? backend.reasons
+        : backend.reason
+        ? [String(backend.reason)]
+        : [];
 
-    // 간단 매핑 규칙: true→ELIGIBLE, false→INELIGIBLE (정보 부족 문구 감지 시 BORDERLINE)
-    const borderlineHints = ["정보", "부족", "없습니다", "없음", "미확인", "불명"];
-    const isBorderline = !eligible && borderlineHints.some((h) => reason.includes(h));
-    const eligibility = eligible ? "ELIGIBLE" : isBorderline ? "BORDERLINE" : "INELIGIBLE";
-
+    const criteria = backend.criteria_results ?? {};
     const mapped: NoticeEligibilityResult = {
       noticeId: String(id),
-      eligibility,
+      eligibility: eligibility,
       checkedAt: new Date().toISOString(),
-      reasons: reason ? [reason] : [],
-    } as NoticeEligibilityResult;
+      reasons: reasonsList,
+      reasons_human: backend.reasons_human ?? reasonsList,
+      criteria_results: {
+        pass: Array.isArray(criteria.pass) ? criteria.pass : [],
+        fail: Array.isArray(criteria.fail) ? criteria.fail : [],
+        verify: Array.isArray(criteria.verify) ? criteria.verify : [],
+      },
+      missing_info: Array.isArray(backend.missing_info) ? backend.missing_info : [],
+      suitable: typeof backend.suitable === "boolean" ? backend.suitable : undefined,
+      reason_codes: Array.isArray(backend.reason_codes) ? backend.reason_codes : [],
+      raw: backend,
+    };
 
     return NextResponse.json(mapped, { status: 200 });
   } catch (error: any) {

@@ -62,7 +62,22 @@ export function EligibilityResult({
   }
 
   const status = data.eligibility;
-  const ui = ELIGIBILITY_MAP[status];
+  const ui = status ? ELIGIBILITY_MAP[status] : ELIGIBILITY_MAP.ELIGIBLE;
+
+  const reasons =
+    (Array.isArray(data.reasons_human) && data.reasons_human.length > 0
+      ? data.reasons_human
+      : Array.isArray(data.reasons)
+      ? data.reasons
+      : []) as string[];
+
+  const criteria = data.criteria_results ?? {};
+  const passList = Array.isArray(criteria.pass) ? criteria.pass : [];
+  const failList = Array.isArray(criteria.fail) ? criteria.fail : [];
+  const verifyList = Array.isArray(criteria.verify) ? criteria.verify : [];
+
+  const missingInfo = Array.isArray(data.missing_info) ? data.missing_info : [];
+  const reasonCodes = Array.isArray(data.reason_codes) ? data.reason_codes : [];
 
   return (
     <Card>
@@ -90,23 +105,105 @@ export function EligibilityResult({
           </span>
         </div>
 
-        {/* 사유 영역 */}
-        <div className="mt-3">
-          <div className="mb-1 text-sm font-medium text-gray-700">분석 사유</div>
+        <div className="mt-4 space-y-4">
+          {(failList.length > 0 || verifyList.length > 0 || passList.length > 0) && (
+            <div>
+              <div className="mb-2 text-sm font-semibold text-gray-700">요건 판정 요약</div>
+              <div className="grid gap-3">
+                {failList.length > 0 && (
+                  <SummaryList
+                    title="미충족"
+                    tone="fail"
+                    items={failList}
+                    ariaLabel="미충족 요건 목록"
+                  />
+                )}
+                {verifyList.length > 0 && (
+                  <SummaryList
+                    title="확인 필요"
+                    tone="verify"
+                    items={verifyList}
+                    ariaLabel="추가 확인이 필요한 요건 목록"
+                  />
+                )}
+                {passList.length > 0 && (
+                  <SummaryList
+                    title="충족"
+                    tone="pass"
+                    items={passList}
+                    ariaLabel="충족된 요건 목록"
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
-          {Array.isArray(data.reasons) && data.reasons.length > 0 ? (
-            <ul className="list-inside list-disc space-y-1 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-800">
-              {data.reasons.map((reasonText, i) => (
-                <li key={i}>{reasonText}</li>
+          {reasons.length > 0 && (
+            <div>
+              <div className="mb-2 text-sm font-semibold text-gray-700">분석 코멘트</div>
+              <ul className="list-inside list-disc space-y-1 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-800">
+                {reasons.map((reasonText, i) => (
+                  <li key={i}>{reasonText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {missingInfo.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              <div className="font-semibold">추가 입력이 필요해요</div>
+              <p className="mt-1">
+                아래 정보가 프로필에 없어 정확한 판정이 어렵습니다:
+              </p>
+              <ul className="mt-1 list-inside list-disc space-y-0.5">
+                {missingInfo.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {reasonCodes.length > 0 && (
+            <div className="flex flex-wrap gap-2 text-[11px] text-gray-500">
+              {reasonCodes.map((code) => (
+                <span key={code} className="rounded bg-gray-100 px-2 py-0.5">
+                  #{code}
+                </span>
               ))}
-            </ul>
-          ) : (
-            <p className="whitespace-pre-wrap rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-800">
-              사유 정보가 제공되지 않았습니다.
-            </p>
+            </div>
           )}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SummaryList({
+  title,
+  items,
+  tone,
+  ariaLabel,
+}: {
+  title: string;
+  items: string[];
+  tone: "pass" | "fail" | "verify";
+  ariaLabel: string;
+}) {
+  const toneClass =
+    tone === "pass"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : tone === "fail"
+      ? "border-red-200 bg-red-50 text-red-800"
+      : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 text-sm ${toneClass}`} aria-label={ariaLabel}>
+      <div className="mb-1 font-semibold">{title}</div>
+      <ul className="list-inside list-disc space-y-1">
+        {items.map((item, idx) => (
+          <li key={idx}>{item}</li>
+        ))}
+      </ul>
+    </div>
   );
 }

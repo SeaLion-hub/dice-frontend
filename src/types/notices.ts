@@ -77,10 +77,19 @@ export type Notice = NoticeItem;
 // 적합도 결과 타입
 export interface NoticeEligibilityResult {
   noticeId: string;
-  eligibility: Eligibility;
+  eligibility: Eligibility | null;
   checkedAt?: string;   // 분석 시각
-  reasons?: string[];   // 판단 사유 목록
-  // 필요 시 세부 필드 추가 가능
+  reasons?: string[];   // 판단 사유 목록 (호환성용)
+  reasons_human?: string[];
+  criteria_results?: {
+    pass?: string[];
+    fail?: string[];
+    verify?: string[];
+  };
+  missing_info?: string[];
+  reason_codes?: string[];
+  suitable?: boolean;
+  raw?: unknown;
 }
 
 // 제네릭 페이지네이션 응답
