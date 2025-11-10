@@ -5,12 +5,15 @@ import BottomNav from "@/components/nav/BottomNav";
 
 const LOGIN_REDIRECT_PARAM = "next";
 const LOGIN_PATH = "/login";
+const PROFILE_PATH = "/profile";
 
-export default function ProfileLayout({ children }: { children: ReactNode }) {
-  const tokenCookie = cookies().get("DICE_TOKEN");
+export default async function ProfileLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const tokenCookie =
+    typeof cookieStore?.get === "function" ? cookieStore.get("DICE_TOKEN") : undefined;
 
   if (!tokenCookie || !tokenCookie.value) {
-    const searchParams = new URLSearchParams({ [LOGIN_REDIRECT_PARAM]: "/profile" });
+    const searchParams = new URLSearchParams({ [LOGIN_REDIRECT_PARAM]: PROFILE_PATH });
     redirect(`${LOGIN_PATH}?${searchParams.toString()}`);
   }
 
