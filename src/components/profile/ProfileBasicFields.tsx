@@ -28,19 +28,25 @@ type Props = {
 
 export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
   const selectedCollege = form.watch("college");
+  const selectedMajor = form.watch("major");
+  const availableMajors = React.useMemo(() => {
+    if (!selectedCollege) return [];
+    return majors.find((item) => item.college === selectedCollege)?.majors ?? [];
+  }, [majors, selectedCollege]);
+  const hasSelectedCollegeOption =
+    !!selectedCollege && majors.some((item) => item.college === selectedCollege);
+  const hasSelectedMajorOption =
+    !!selectedMajor && availableMajors.includes(selectedMajor);
 
   React.useEffect(() => {
-    if (!selectedCollege) return;
+    if (!selectedCollege || majorsLoading) return;
     const currentMajor = form.getValues("major");
     const target = majors.find((item) => item.college === selectedCollege);
-    if (!target) {
-      form.setValue("major", "", { shouldValidate: true });
-      return;
-    }
+    if (!target) return;
     if (currentMajor && !target.majors.includes(currentMajor)) {
       form.setValue("major", "", { shouldValidate: true });
     }
-  }, [selectedCollege, majors, form]);
+  }, [selectedCollege, majorsLoading, majors, form]);
 
   return (
     <div className="space-y-4">
@@ -130,6 +136,9 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none">선택 안 함</SelectItem>
+                {!hasSelectedCollegeOption && selectedCollege ? (
+                  <SelectItem value={selectedCollege}>{selectedCollege} (이전 값)</SelectItem>
+                ) : null}
                 {majors.map((item) => (
                   <SelectItem key={item.college} value={item.college}>
                     {item.college}
@@ -164,13 +173,14 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none">전공 선택 안 함</SelectItem>
-                {majors
-                  .find((item) => item.college === selectedCollege)
-                  ?.majors.map((major) => (
-                    <SelectItem key={major} value={major}>
-                      {major}
-                    </SelectItem>
-                  ))}
+                {!hasSelectedMajorOption && selectedMajor ? (
+                  <SelectItem value={selectedMajor}>{selectedMajor} (이전 값)</SelectItem>
+                ) : null}
+                {availableMajors.map((major) => (
+                  <SelectItem key={major} value={major}>
+                    {major}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}

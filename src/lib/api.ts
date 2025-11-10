@@ -4,7 +4,8 @@ import axios from 'axios';
 const BASE_URL =
   process.env.DICE_API_BASE_URL ??
   process.env.NEXT_PUBLIC_DICE_API_BASE_URL ?? // fallback if only public var exists
-  'http://localhost:4000';
+  process.env.NEXT_PUBLIC_API_BASE ?? // align with client-side fetches
+  'http://localhost:8000';
 
 export const api = axios.create({
   baseURL: BASE_URL,
