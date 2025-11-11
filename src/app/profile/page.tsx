@@ -152,6 +152,8 @@ export default function ProfilePage() {
     },
   });
 
+  const isFormDirty = form.formState.isDirty;
+
   const lastHydratedRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -168,24 +170,40 @@ export default function ProfilePage() {
       ? `${profile.user_id}-${profile.updated_at ?? "no-updated-at"}-${majorsData.length}`
       : `empty-${majorsData.length}`;
 
-    if (lastHydratedRef.current === signature) {
-      return;
-    }
+    const defaults: ProfileFormValues = {
+      gender: "prefer_not_to_say",
+      age: "",
+      grade: "1",
+      college: "",
+      major: "",
+      military_service: "",
+      income_bracket: "",
+      gpa: "",
+      keywords: [] as string[],
+      languageScores: createEmptyLanguageScores(),
+    };
 
     if (profile === null) {
-      form.reset({
-        gender: "prefer_not_to_say",
-        age: "",
-        grade: "1",
-        college: "",
-        major: "",
-        military_service: "",
-        income_bracket: "",
-        gpa: "",
-        keywords: [],
-        languageScores: createEmptyLanguageScores(),
-      });
-      lastHydratedRef.current = signature;
+      const currentValues = form.getValues();
+      const shouldHydrateNullProfile =
+        lastHydratedRef.current !== signature ||
+        (!isFormDirty &&
+          (currentValues.gender !== defaults.gender ||
+            currentValues.age !== defaults.age ||
+            currentValues.grade !== defaults.grade ||
+            currentValues.college !== defaults.college ||
+            currentValues.major !== defaults.major ||
+            currentValues.military_service !== defaults.military_service ||
+            currentValues.income_bracket !== defaults.income_bracket ||
+            currentValues.gpa !== defaults.gpa ||
+            currentValues.keywords.length !== 0 ||
+            JSON.stringify(currentValues.languageScores) !==
+              JSON.stringify(defaults.languageScores)));
+
+      if (shouldHydrateNullProfile) {
+        form.reset(defaults);
+        lastHydratedRef.current = signature;
+      }
       return;
     }
 
@@ -198,28 +216,52 @@ export default function ProfilePage() {
       : "1";
     const ageString = profile.age != null ? String(profile.age) : "";
 
-      const derivedCollege =
-        profile.college ??
-        majorsData.find((item) => item.majors.includes(profile.major ?? ""))?.college ??
-        form.getValues("college") ??
-        "";
+    const currentValues = form.getValues();
+    const derivedCollege =
+      profile.college ??
+      majorsData.find((item) => item.majors.includes(profile.major ?? ""))?.college ??
+      currentValues.college ??
+      "";
 
-    form.reset({
+    const expectedValues: ProfileFormValues = {
       gender: profile.gender ?? "prefer_not_to_say",
       age: ageString,
       grade: gradeString,
       college: derivedCollege,
       major: profile.major ?? "",
       military_service: profile.military_service ?? "",
-      income_bracket:
-        profile.income_bracket != null ? String(profile.income_bracket) : "",
+      income_bracket: profile.income_bracket != null ? String(profile.income_bracket) : "",
       gpa: profile.gpa != null ? String(profile.gpa) : "",
       keywords: sanitizedKeywords,
       languageScores: languageScoresFromProfile,
-    });
+    };
 
+    const arraysEqual = (a: string[], b: string[]) =>
+      a.length === b.length && a.every((value, index) => value === b[index]);
+    const languageScoresEqual = (a: LanguageScores, b: LanguageScores) =>
+      JSON.stringify(a) === JSON.stringify(b);
+
+    const shouldHydrateProfile =
+      lastHydratedRef.current !== signature ||
+      (!isFormDirty &&
+        (currentValues.gender !== expectedValues.gender ||
+          currentValues.age !== expectedValues.age ||
+          currentValues.grade !== expectedValues.grade ||
+          currentValues.college !== expectedValues.college ||
+          currentValues.major !== expectedValues.major ||
+          currentValues.military_service !== expectedValues.military_service ||
+          currentValues.income_bracket !== expectedValues.income_bracket ||
+          currentValues.gpa !== expectedValues.gpa ||
+          !arraysEqual(currentValues.keywords, expectedValues.keywords) ||
+          !languageScoresEqual(currentValues.languageScores, expectedValues.languageScores)));
+
+    if (!shouldHydrateProfile) {
+      return;
+    }
+
+    form.reset(expectedValues);
     lastHydratedRef.current = signature;
-  }, [profile, majorsData, majorsLoading, form]);
+  }, [profile, majorsData, majorsLoading, form, isFormDirty]);
 
   React.useEffect(() => {
     if (!token) {
