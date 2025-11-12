@@ -15,6 +15,7 @@ type Props = {
   dense?: boolean; // 리스트 모드(헤더와 12컬럼 정렬)
   onClick?: (id: string) => void;
   recommended?: boolean;
+  highlightQuery?: string; // 검색어 하이라이트용
 };
 
 const INDICATOR_LABELS: Record<NonNullable<NoticeItem['eligibility']>, string> = {
@@ -23,7 +24,21 @@ const INDICATOR_LABELS: Record<NonNullable<NoticeItem['eligibility']>, string> =
   INELIGIBLE: '부적합',
 };
 
-export default function NoticeCard({ item, dense = false, onClick, recommended = false }: Props) {
+export default function NoticeCard({ item, dense = false, onClick, recommended = false, highlightQuery }: Props) {
+  // 검색어 하이라이트 함수
+  const highlightText = React.useCallback((text: string, query?: string) => {
+    if (!query || !query.trim()) return text;
+    const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi"));
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <mark key={i} className="bg-yellow-200 text-yellow-900 px-0.5 rounded">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  }, []);
   const { data: colleges } = useColleges();
   const token = useAuthStore((s) => s.token);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -112,7 +127,9 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
               추천
             </Badge>
           )}
-          <div className="min-w-0 truncate text-sm font-medium">{item.title}</div>
+          <div className="min-w-0 truncate text-sm font-medium">
+            {highlightQuery ? highlightText(item.title, highlightQuery) : item.title}
+          </div>
           {item.read && <span className="text-[10px] text-neutral-400">읽음</span>}
         </div>
 
@@ -168,7 +185,9 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
                 추천
               </Badge>
             )}
-            <h3 className="min-w-0 truncate text-base font-semibold leading-snug">{item.title}</h3>
+            <h3 className="min-w-0 truncate text-base font-semibold leading-snug">
+              {highlightQuery ? highlightText(item.title, highlightQuery) : item.title}
+            </h3>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">

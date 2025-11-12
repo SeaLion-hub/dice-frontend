@@ -78,6 +78,10 @@ export function EligibilityResult({
 
   const missingInfo = Array.isArray(data.missing_info) ? data.missing_info : [];
 
+  // 전체 요건 수 계산
+  const totalCriteria = passList.length + failList.length + verifyList.length;
+  const passPercentage = totalCriteria > 0 ? Math.round((passList.length / totalCriteria) * 100) : 0;
+
   return (
     <Card>
       <CardHeader>
@@ -103,6 +107,34 @@ export function EligibilityResult({
             {status}
           </span>
         </div>
+
+        {/* 프로그레스 바 - 전체 요건 충족률 */}
+        {totalCriteria > 0 && (
+          <div className="mb-4">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium text-gray-700">요건 충족률</span>
+              <span className={`font-semibold ${ui.color}`}>{passPercentage}%</span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  status === "ELIGIBLE"
+                    ? "bg-green-500"
+                    : status === "BORDERLINE"
+                    ? "bg-amber-500"
+                    : "bg-red-500"
+                }`}
+                style={{ width: `${passPercentage}%` }}
+                aria-label={`${passPercentage}% 충족`}
+              />
+            </div>
+            <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <span>충족: {passList.length}개</span>
+              <span>미충족: {failList.length}개</span>
+              <span>확인 필요: {verifyList.length}개</span>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 space-y-4">
           {((failList.length > 0 || verifyList.length > 0 || passList.length > 0) || reasons.length > 0) && (

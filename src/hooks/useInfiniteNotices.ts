@@ -15,6 +15,7 @@ type QueryInput = {
 type UseInfiniteNoticesArgs = {
   query: QueryInput;
   pageSize?: number;
+  enabled?: boolean;
 };
 
 export type NoticeItem = {
@@ -137,7 +138,7 @@ async function fetchNotices({
   };
 }
 
-export function useInfiniteNotices({ query, pageSize = 20 }: UseInfiniteNoticesArgs) {
+export function useInfiniteNotices({ query, pageSize = 20, enabled = true }: UseInfiniteNoticesArgs) {
   const token = useAuthStore((state) => state.token);
 
   return useInfiniteQuery({
@@ -145,5 +146,6 @@ export function useInfiniteNotices({ query, pageSize = 20 }: UseInfiniteNoticesA
     queryFn: ({ pageParam }) => fetchNotices({ pageParam, query, pageSize, token }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage?.hasNext ? lastPage.nextPage : undefined),
+    enabled,
   });
 }

@@ -12,6 +12,8 @@ import { EligibilityResult } from "@/components/notices/EligibilityResult";
 import { CalendarButton } from "@/components/notices/CalendarButton";
 import { Button } from "@/components/ui/button";
 import { useCalendarStore } from "@/stores/useCalendarStore";
+import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
+import NoticeCard from "@/components/notices/NoticeCard";
 
 export default function NoticeDetailPage() {
   const router = useRouter();
@@ -121,6 +123,44 @@ export default function NoticeDetailPage() {
   
   // 자격 분석 섹션 표시 여부: 정보성 공지가 아닐 때만 표시
   const shouldShowEligibilitySection = !isInformationalNoticeForFetch;
+
+  // 관련 공지 추천을 위한 쿼리
+  const relatedNoticesQuery = React.useMemo(() => {
+    if (!noticeData) return null;
+    const hashtags = noticeData.hashtags_ai ?? [];
+    const detailedHashtags = noticeData.detailed_hashtags ?? [];
+    
+    // 해시태그가 있으면 해시태그로, 없으면 출처로 검색
+    if (Array.isArray(hashtags) && hashtags.length > 0) {
+      return {
+        hashtags: [hashtags[0]],
+        sort: "recent" as const,
+      };
+    } else if (noticeData.source_college) {
+      return {
+        sourceCollege: noticeData.college_key || noticeData.source_college,
+        sort: "recent" as const,
+      };
+    }
+    
+    return null;
+  }, [noticeData]);
+
+  const {
+    data: relatedNoticesData,
+    isLoading: isRelatedLoading,
+  } = useInfiniteNotices({
+    query: relatedNoticesQuery || {},
+    pageSize: 5,
+    enabled: !!relatedNoticesQuery,
+  });
+
+  const relatedNotices = React.useMemo(() => {
+    if (!relatedNoticesData) return [];
+    const allNotices = relatedNoticesData.pages.flatMap((page) => page?.items ?? []);
+    // 현재 공지 제외
+    return allNotices.filter((notice) => String(notice.id) !== String(id)).slice(0, 5);
+  }, [relatedNoticesData, id]);
 
   const handleAddKeyDate = React.useCallback(
     (entry: DerivedKeyDate) => {
@@ -377,6 +417,24 @@ export default function NoticeDetailPage() {
           )}
         </aside>
       </div>
+
+      {/* 관련 공지 추천 섹션 */}
+      {relatedNotices.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">관련 공지</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {relatedNotices.map((notice) => (
+              <div
+                key={notice.id}
+                onClick={() => router.push(`/notices/${notice.id}`)}
+                className="cursor-pointer"
+              >
+                <NoticeCard item={notice} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
