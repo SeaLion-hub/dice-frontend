@@ -184,29 +184,15 @@ export default function ProfilePage() {
     };
 
     if (profile === null) {
-      const currentValues = form.getValues();
-      const shouldHydrateNullProfile =
-        lastHydratedRef.current !== signature ||
-        (!isFormDirty &&
-          (currentValues.gender !== defaults.gender ||
-            currentValues.age !== defaults.age ||
-            currentValues.grade !== defaults.grade ||
-            currentValues.college !== defaults.college ||
-            currentValues.major !== defaults.major ||
-            currentValues.military_service !== defaults.military_service ||
-            currentValues.income_bracket !== defaults.income_bracket ||
-            currentValues.gpa !== defaults.gpa ||
-            currentValues.keywords.length !== 0 ||
-            JSON.stringify(currentValues.languageScores) !==
-              JSON.stringify(defaults.languageScores)));
-
-      if (shouldHydrateNullProfile) {
+      // 프로필이 없으면 기본값으로 초기화
+      if (lastHydratedRef.current !== signature) {
         form.reset(defaults);
         lastHydratedRef.current = signature;
       }
       return;
     }
 
+    // 프로필이 있으면 프로필 값으로 폼 초기화
     const sanitizedKeywords = sanitizeKeywords(profile.keywords || []);
     const languageScoresFromProfile = buildLanguageScoresFromProfile(profile.language_scores);
     const gradeString = ALLOWED_GRADES.includes(
@@ -216,11 +202,9 @@ export default function ProfilePage() {
       : "1";
     const ageString = profile.age != null ? String(profile.age) : "";
 
-    const currentValues = form.getValues();
     const derivedCollege =
       profile.college ??
       majorsData.find((item) => item.majors.includes(profile.major ?? ""))?.college ??
-      currentValues.college ??
       "";
 
     const expectedValues: ProfileFormValues = {
@@ -236,38 +220,36 @@ export default function ProfilePage() {
       languageScores: languageScoresFromProfile,
     };
 
-    const arraysEqual = (a: string[], b: string[]) =>
-      a.length === b.length && a.every((value, index) => value === b[index]);
-    const languageScoresEqual = (a: LanguageScores, b: LanguageScores) =>
-      JSON.stringify(a) === JSON.stringify(b);
-
-    const shouldHydrateProfile =
-      lastHydratedRef.current !== signature ||
-      (!isFormDirty &&
-        (currentValues.gender !== expectedValues.gender ||
-          currentValues.age !== expectedValues.age ||
-          currentValues.grade !== expectedValues.grade ||
-          currentValues.college !== expectedValues.college ||
-          currentValues.major !== expectedValues.major ||
-          currentValues.military_service !== expectedValues.military_service ||
-          currentValues.income_bracket !== expectedValues.income_bracket ||
-          currentValues.gpa !== expectedValues.gpa ||
-          !arraysEqual(currentValues.keywords, expectedValues.keywords) ||
-          !languageScoresEqual(currentValues.languageScores, expectedValues.languageScores)));
-
-    if (!shouldHydrateProfile) {
-      return;
+    // 시그니처가 변경되었을 때만 리셋 (프로필이 업데이트되었거나 처음 로드될 때)
+    if (lastHydratedRef.current !== signature) {
+      form.reset(expectedValues);
+      lastHydratedRef.current = signature;
     }
-
-    form.reset(expectedValues);
-    lastHydratedRef.current = signature;
-  }, [profile, majorsData, majorsLoading, form, isFormDirty]);
+  }, [profile, majorsData, majorsLoading, form]);
 
   React.useEffect(() => {
     if (!token) {
       router.push("/login");
     }
   }, [token, router]);
+
+  // 해시가 있으면 해당 필드로 스크롤
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const element = document.getElementById(hash);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+          // 포커스 가능한 요소가 있으면 포커스
+          const focusable = element.querySelector('input, select, textarea, button');
+          if (focusable && focusable instanceof HTMLElement) {
+            focusable.focus();
+          }
+        }, 300);
+      }
+    }
+  }, [isProfileLoading]);
 
   const updateProfile = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
@@ -389,6 +371,84 @@ export default function ProfilePage() {
     updateProfile.mutate(payload);
   };
 
+  // 프로필 완성도 계산
+  const calculateProfileCompleteness = React.useCallback((profile: UserProfile | null): {
+    percentage: number;
+    missingFields: string[];
+    completedFields: string[];
+  } => {
+    if (!profile) {
+      return { percentage: 0, missingFields: [], completedFields: [] };
+    }
+
+    const requiredFields: Array<{ key: keyof UserProfile; label: string }> = [
+      { key: "age", label: "나이" },
+      { key: "major", label: "전공" },
+      { key: "college", label: "단과대" },
+      { key: "grade", label: "학년" },
+      { key: "keywords", label: "관심 키워드" },
+    ];
+
+    const optionalFields: Array<{ key: keyof UserProfile; label: string }> = [
+      { key: "military_service", label: "병역 여부" },
+      { key: "income_bracket", label: "소득 분위" },
+      { key: "gpa", label: "학점" },
+      { key: "language_scores", label: "어학 점수" },
+    ];
+
+    const completedRequired = requiredFields.filter((field) => {
+      const value = profile[field.key];
+      if (field.key === "keywords") {
+        return Array.isArray(value) && value.length > 0;
+      }
+      return value != null && value !== "";
+    });
+
+    const completedOptional = optionalFields.filter((field) => {
+      const value = profile[field.key];
+      if (field.key === "language_scores") {
+        return value != null && typeof value === "object" && Object.keys(value).length > 0;
+      }
+      return value != null && value !== "";
+    });
+
+    const missingRequired = requiredFields
+      .filter((field) => {
+        const value = profile[field.key];
+        if (field.key === "keywords") {
+          return !Array.isArray(value) || value.length === 0;
+        }
+        return value == null || value === "";
+      })
+      .map((f) => f.label);
+
+    const missingOptional = optionalFields
+      .filter((field) => {
+        const value = profile[field.key];
+        if (field.key === "language_scores") {
+          return value == null || typeof value !== "object" || Object.keys(value).length === 0;
+        }
+        return value == null || value === "";
+      })
+      .map((f) => f.label);
+
+    // 완성도 계산: 필수 70%, 선택 30%
+    const requiredScore = (completedRequired.length / requiredFields.length) * 70;
+    const optionalScore = (completedOptional.length / optionalFields.length) * 30;
+    const percentage = Math.round(requiredScore + optionalScore);
+
+    return {
+      percentage,
+      missingFields: [...missingRequired, ...missingOptional],
+      completedFields: [
+        ...completedRequired.map((f) => f.label),
+        ...completedOptional.map((f) => f.label),
+      ],
+    };
+  }, []);
+
+  const completeness = React.useMemo(() => calculateProfileCompleteness(profile ?? null), [profile, calculateProfileCompleteness]);
+
   if (!token) {
     return null;
   }
@@ -397,18 +457,81 @@ export default function ProfilePage() {
     <main className="mx-auto max-w-2xl px-4 py-6 pb-32 animate-in fade-in duration-300">
       <h1 className="mb-6 text-2xl font-semibold text-gray-900">설정</h1>
 
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-          <User className="h-5 w-5" />
-          사용자 정보
-        </h2>
-        <div className="space-y-2 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            <span>{userMe?.email || user?.email || "이메일 정보 없음"}</span>
+      {/* 프로필 완성도 섹션 */}
+      {profile && (
+        <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+            <User className="h-5 w-5" />
+            프로필 완성도
+          </h2>
+          
+          <div className="space-y-4">
+            {/* 프로그레스 바 */}
+            <div>
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium text-gray-700">완성도</span>
+                <span className={`font-semibold ${
+                  completeness.percentage >= 80 ? "text-green-600" :
+                  completeness.percentage >= 50 ? "text-amber-600" :
+                  "text-red-600"
+                }`}>
+                  {completeness.percentage}%
+                </span>
+              </div>
+              <div className="h-4 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    completeness.percentage >= 80 ? "bg-green-500" :
+                    completeness.percentage >= 50 ? "bg-amber-500" :
+                    "bg-red-500"
+                  }`}
+                  style={{ width: `${completeness.percentage}%` }}
+                  aria-label={`${completeness.percentage}% 완성`}
+                />
+              </div>
+            </div>
+
+            {/* 부족한 항목 안내 */}
+            {completeness.missingFields.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="mb-2 text-sm font-semibold text-amber-900">입력이 필요한 항목</div>
+                <ul className="list-inside list-disc space-y-1 text-sm text-amber-800">
+                  {completeness.missingFields.map((field, idx) => (
+                    <li key={idx}>{field}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 완성도에 따른 안내 */}
+            {completeness.percentage < 100 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                <div className="font-semibold mb-1">
+                  {completeness.percentage >= 80
+                    ? "거의 완성되었어요! 🎉"
+                    : completeness.percentage >= 50
+                    ? "조금만 더 채워주세요"
+                    : "프로필을 더 채워주세요"}
+                </div>
+                <p className="text-xs text-blue-700 mt-1">
+                  {completeness.percentage >= 80
+                    ? "프로필이 완성되면 더 정확한 맞춤 추천을 받을 수 있어요."
+                    : "프로필을 완성할수록 AI가 더 정확하게 적합한 공지를 추천해드려요."}
+                </p>
+              </div>
+            )}
+
+            {completeness.percentage === 100 && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                <div className="font-semibold">프로필이 완성되었어요! 🎉</div>
+                <p className="text-xs text-green-700 mt-1">
+                  완성된 프로필로 더 정확한 맞춤 추천을 받고 계세요.
+                </p>
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold">프로필 수정</h2>

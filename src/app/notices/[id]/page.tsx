@@ -214,9 +214,9 @@ export default function NoticeDetailPage() {
         </Button>
       </div>
 
-      <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8 lg:space-y-0">
+      <div className="space-y-6">
         {/* 메인 콘텐츠 영역 */}
-        <section className="lg:order-1">
+        <section>
           {/* 제목 */}
           <header className="mb-6">
             {isDetailLoading ? (
@@ -245,75 +245,34 @@ export default function NoticeDetailPage() {
             </div>
           ) : (
             <article className="prose prose-gray max-w-none">
-              {sanitizedBody ? (
+              {noticeData?.body_text ? (
+                // 1. 'body_text' (요청하신 컬럼)를 최우선으로 표시
+                <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
+                  {noticeData.body_text}
+                </div>
+              ) : noticeData?.raw_text ? (
+                // 2. 'body_text'가 없을 경우 'raw_text' 표시
+                <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
+                  {noticeData.raw_text}
+                </div>
+              ) : sanitizedBody ? (
+                // 3. 둘 다 없을 경우 'body_html' (sanitizedBody) 표시
                 <div
                   className="text-[15px] leading-8 text-gray-800 [&_p]:mb-4 [&_ul]:mb-4 [&_ol]:mb-4 [&_li]:mb-2"
                   dangerouslySetInnerHTML={{ __html: sanitizedBody }}
                 />
               ) : (
+                // 4. 모두 없을 경우 'body' 또는 대체 텍스트 표시
                 <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
-                  {noticeData?.raw_text || noticeData?.body || "내용이 없습니다."}
+                  {noticeData?.body || "내용이 없습니다."}
                 </div>
               )}
             </article>
           )}
-        </section>
 
-        {/* 사이드바 */}
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:order-2 lg:h-fit">
-          {/* 공지 정보 카드 */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-base font-semibold text-gray-900">공지 정보</h2>
-            <dl className="space-y-3 text-sm">
-              {noticeData?.source_college && (
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                  <dt className="font-medium text-gray-700">출처</dt>
-                  <dd className="text-gray-600">{noticeData.source_college}</dd>
-                </div>
-              )}
-              {postedAt && (
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                  <dt className="font-medium text-gray-700">게시일</dt>
-                  <dd className="text-gray-600">
-                    {new Date(postedAt).toLocaleDateString("ko-KR", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </dd>
-                </div>
-              )}
-              {shouldShowScheduleSection && (noticeData?.start_at_ai || noticeData?.end_at_ai) && (
-                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
-                  <CalendarIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-semibold">AI 추출 일정</p>
-                    <p className="mt-1">
-                      {noticeData.start_at_ai
-                        ? new Date(noticeData.start_at_ai).toLocaleString("ko-KR")
-                        : "시작일 미정"}
-                    </p>
-                    {noticeData.end_at_ai && (
-                      <p className="mt-1">
-                        ~ {new Date(noticeData.end_at_ai).toLocaleString("ko-KR")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </dl>
-            {noticeData?.url && (
-              <Button asChild variant="outline" size="sm" className="mt-4 w-full justify-center">
-                <Link href={noticeData.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" /> 원본 공지 보기
-                </Link>
-              </Button>
-            )}
-          </div>
-
-          {/* 일정 관리 섹션 - 일정 정보가 있고 정보성 공지가 아닐 때만 표시 */}
+          {/* 일정 관리 섹션 - 본문 밑에 표시 */}
           {noticeData && shouldShowScheduleSection && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
               <h2 className="mb-2 text-base font-semibold text-gray-900">일정 관리</h2>
               <p className="mb-4 text-xs text-gray-500">마감 기한을 놓치지 않도록 서비스 캘린더에 저장해 보세요.</p>
 
@@ -399,22 +358,83 @@ export default function NoticeDetailPage() {
             </div>
           )}
 
-          {/* 자격 분석 섹션 - 정보성 공지가 아닐 때만 표시 */}
-          {shouldShowEligibilitySection && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-2 text-base font-semibold text-gray-900">자격 분석</h2>
-              {isEligibilityError ? (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                  자격 분석 결과를 불러오지 못했습니다.{" "}
-                  <button className="underline" onClick={() => refetchEligibility()}>
-                    다시 시도
-                  </button>
+          {/* 자격 분석 섹션 - 본문 밑에 표시 */}
+          {shouldShowEligibilitySection && (() => {
+            // 정보성 공지인 경우 섹션 자체를 표시하지 않음
+            const reasonCodes = Array.isArray(eligibilityData?.reason_codes) ? eligibilityData.reason_codes : [];
+            if (reasonCodes.includes("INFO_NOTICE")) {
+              return null;
+            }
+            
+            return (
+              <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-2 text-base font-semibold text-gray-900">AI 자격 분석</h2>
+                {isEligibilityError ? (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                    자격 분석 결과를 불러오지 못했습니다.{" "}
+                    <button className="underline" onClick={() => refetchEligibility()}>
+                      다시 시도
+                    </button>
+                  </div>
+                ) : (
+                  <EligibilityResult data={eligibilityData} isLoading={isLoading} />
+                )}
+              </div>
+            );
+          })()}
+        </section>
+
+        {/* 사이드바 */}
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:h-fit">
+          {/* 공지 정보 카드 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-base font-semibold text-gray-900">공지 정보</h2>
+            <dl className="space-y-3 text-sm">
+              {noticeData?.source_college && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <dt className="font-medium text-gray-700">출처</dt>
+                  <dd className="text-gray-600">{noticeData.source_college}</dd>
                 </div>
-              ) : (
-                <EligibilityResult data={eligibilityData} isLoading={isLoading} />
               )}
-            </div>
-          )}
+              {postedAt && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <dt className="font-medium text-gray-700">게시일</dt>
+                  <dd className="text-gray-600">
+                    {new Date(postedAt).toLocaleDateString("ko-KR", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </dd>
+                </div>
+              )}
+              {shouldShowScheduleSection && (noticeData?.start_at_ai || noticeData?.end_at_ai) && (
+                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
+                  <CalendarIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold">AI 추출 일정</p>
+                    <p className="mt-1">
+                      {noticeData.start_at_ai
+                        ? new Date(noticeData.start_at_ai).toLocaleString("ko-KR")
+                        : "시작일 미정"}
+                    </p>
+                    {noticeData.end_at_ai && (
+                      <p className="mt-1">
+                        ~ {new Date(noticeData.end_at_ai).toLocaleString("ko-KR")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </dl>
+            {noticeData?.url && (
+              <Button asChild variant="outline" size="sm" className="mt-4 w-full justify-center">
+                <Link href={noticeData.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" /> 원본 공지 보기
+                </Link>
+              </Button>
+            )}
+          </div>
         </aside>
       </div>
 

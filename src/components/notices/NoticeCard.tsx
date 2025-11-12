@@ -75,7 +75,14 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
     data: eligibilityData,
   } = useNoticeEligibility(noticeId, shouldFetchEligibility);
 
-  const effectiveEligibility = eligibilityData?.eligibility ?? item.eligibility ?? null;
+  // 정보성 공지인지 확인 (reason_codes에 INFO_NOTICE가 포함되어 있으면 자격이 큰 의미가 없음)
+  const reasonCodes = Array.isArray(eligibilityData?.reason_codes) ? eligibilityData.reason_codes : [];
+  const isInfoNotice = reasonCodes.includes("INFO_NOTICE");
+
+  // AI 자격분석이 없거나 정보성 공지인 경우 null로 설정하여 회색으로 표시
+  const effectiveEligibility = (hasQualificationData && !isInfoNotice)
+    ? (eligibilityData?.eligibility ?? item.eligibility ?? null)
+    : null;
 
   // college_key로 college name 찾기
   const collegeName = React.useMemo(() => {
@@ -253,9 +260,9 @@ function getEligibilityVisual(status: NoticeItem['eligibility'] | null) {
     default:
       return {
         label: '미판단',
-        fillClass: 'bg-white',
+        fillClass: 'bg-gray-400',
         borderClass: 'border-gray-300',
-        outerBgClass: 'bg-white',
+        outerBgClass: 'bg-gray-100',
       };
   }
 }

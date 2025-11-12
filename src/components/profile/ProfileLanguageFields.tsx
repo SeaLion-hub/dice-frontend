@@ -14,7 +14,7 @@ export function ProfileLanguageFields({ form }: Props) {
   const languageScores = form.watch("languageScores");
 
   return (
-    <div className="space-y-3">
+    <div id="languageScores" className="space-y-3 scroll-mt-20">
       <p className="text-sm font-semibold text-gray-900">어학 점수 (선택)</p>
       {TESTS.map(({ key, label }) => {
         const enabled = languageScores?.[key]?.enabled ?? false;

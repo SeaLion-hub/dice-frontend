@@ -49,7 +49,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
   }, [selectedCollege, majorsLoading, majors, form]);
 
   return (
-    <div className="space-y-4">
+    <div id="gender" className="space-y-4 scroll-mt-20">
       <div className="space-y-1.5">
         <Label htmlFor="gender">성별</Label>
         <Controller

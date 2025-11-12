@@ -51,6 +51,7 @@ export interface NoticeItem {
   body: string;
   body_html?: string;
   raw_text: string;
+  body_text?: string;            // 본문 텍스트 (최우선 사용)
   url?: string;                  // 공지 원본 URL
   college_key?: string;          // 단과대 키 (colleges 테이블 참조)
   status: NoticeStatus;

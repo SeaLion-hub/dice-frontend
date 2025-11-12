@@ -21,7 +21,7 @@ type Props = {
 
 export function ProfileAdditionalFields({ form }: Props) {
   return (
-    <div className="space-y-4">
+    <div id="gpa" className="space-y-4 scroll-mt-20">
       <div className="space-y-1.5">
         <Label htmlFor="military_service">병역 (선택)</Label>
         <Controller
