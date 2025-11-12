@@ -30,7 +30,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useCalendarStore } from "@/stores/useCalendarStore";
 
 // store 기반 인증 여부 사용
 
@@ -118,13 +117,6 @@ export default function NoticesPage() {
     if (!data) return [] as Notice[];
     return data.pages.flatMap((page) => page?.items ?? []) as Notice[];
   }, [data]);
-
-  const syncNoticeEvents = useCalendarStore((state) => state.syncNoticeEvents);
-
-  useEffect(() => {
-    if (items.length === 0) return;
-    syncNoticeEvents(items);
-  }, [items, syncNoticeEvents]);
 
   const handleFilterDialogOpenChange = useCallback((open: boolean) => {
     setFilterDialogOpen(open);

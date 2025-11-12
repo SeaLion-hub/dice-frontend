@@ -77,7 +77,6 @@ export function EligibilityResult({
   const verifyList = Array.isArray(criteria.verify) ? criteria.verify : [];
 
   const missingInfo = Array.isArray(data.missing_info) ? data.missing_info : [];
-  const reasonCodes = Array.isArray(data.reason_codes) ? data.reason_codes : [];
 
   return (
     <Card>
@@ -106,46 +105,46 @@ export function EligibilityResult({
         </div>
 
         <div className="mt-4 space-y-4">
-          {(failList.length > 0 || verifyList.length > 0 || passList.length > 0) && (
-            <div>
-              <div className="mb-2 text-sm font-semibold text-gray-700">요건 판정 요약</div>
-              <div className="grid gap-3">
-                {failList.length > 0 && (
-                  <SummaryList
-                    title="미충족"
-                    tone="fail"
-                    items={failList}
-                    ariaLabel="미충족 요건 목록"
-                  />
-                )}
-                {verifyList.length > 0 && (
-                  <SummaryList
-                    title="확인 필요"
-                    tone="verify"
-                    items={verifyList}
-                    ariaLabel="추가 확인이 필요한 요건 목록"
-                  />
-                )}
-                {passList.length > 0 && (
-                  <SummaryList
-                    title="충족"
-                    tone="pass"
-                    items={passList}
-                    ariaLabel="충족된 요건 목록"
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {reasons.length > 0 && (
+          {((failList.length > 0 || verifyList.length > 0 || passList.length > 0) || reasons.length > 0) && (
             <div>
               <div className="mb-2 text-sm font-semibold text-gray-700">분석 코멘트</div>
-              <ul className="list-inside list-disc space-y-1 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-800">
-                {reasons.map((reasonText, i) => (
-                  <li key={i}>{reasonText}</li>
-                ))}
-              </ul>
+              <div className="space-y-3">
+                {(failList.length > 0 || verifyList.length > 0 || passList.length > 0) && (
+                  <div className="grid gap-3">
+                    {failList.length > 0 && (
+                      <SummaryList
+                        title="미충족"
+                        tone="fail"
+                        items={failList}
+                        ariaLabel="미충족 요건 목록"
+                      />
+                    )}
+                    {verifyList.length > 0 && (
+                      <SummaryList
+                        title="확인 필요"
+                        tone="verify"
+                        items={verifyList}
+                        ariaLabel="추가 확인이 필요한 요건 목록"
+                      />
+                    )}
+                    {passList.length > 0 && (
+                      <SummaryList
+                        title="충족"
+                        tone="pass"
+                        items={passList}
+                        ariaLabel="충족된 요건 목록"
+                      />
+                    )}
+                  </div>
+                )}
+                {reasons.length > 0 && (
+                  <ul className="list-inside list-disc space-y-1 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-800">
+                    {reasons.map((reasonText, i) => (
+                      <li key={i}>{reasonText}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
 
@@ -160,16 +159,6 @@ export function EligibilityResult({
                   <li key={idx}>{item}</li>
                 ))}
               </ul>
-            </div>
-          )}
-
-          {reasonCodes.length > 0 && (
-            <div className="flex flex-wrap gap-2 text-[11px] text-gray-500">
-              {reasonCodes.map((code) => (
-                <span key={code} className="rounded bg-gray-100 px-2 py-0.5">
-                  #{code}
-                </span>
-              ))}
             </div>
           )}
         </div>

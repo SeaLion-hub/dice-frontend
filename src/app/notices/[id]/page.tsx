@@ -27,7 +27,15 @@ export default function NoticeDetailPage() {
     refetch: refetchDetail,
   } = useNoticeDetail(id);
 
-  const shouldFetchEligibility = !!id;
+  // 정보성 공지 여부 확인 (#일반 태그가 있는지) - 자격 분석 API 호출 여부 결정
+  const isInformationalNoticeForFetch = React.useMemo(() => {
+    if (!noticeData) return false;
+    const hashtags = noticeData?.hashtags_ai ?? [];
+    return Array.isArray(hashtags) && hashtags.includes("#일반");
+  }, [noticeData]);
+
+  // 자격 분석은 정보성 공지가 아닐 때만 호출
+  const shouldFetchEligibility = !!id && !isInformationalNoticeForFetch;
   const {
     data: eligibilityData,
     isLoading: isEligibilityLoading,
@@ -35,7 +43,7 @@ export default function NoticeDetailPage() {
     refetch: refetchEligibility,
   } = useNoticeEligibility(id, shouldFetchEligibility);
 
-  const isLoading = isDetailLoading || isEligibilityLoading;
+  const isLoading = isDetailLoading || (shouldFetchEligibility && isEligibilityLoading);
 
   const addCalendarEvent = useCalendarStore((state) => state.addEvent);
   const [autoAdded, setAutoAdded] = React.useState(false);
@@ -72,7 +80,8 @@ export default function NoticeDetailPage() {
   }, [noticeData?.body_html]);
 
   React.useEffect(() => {
-    if (!noticeData || autoAdded) return;
+    // 정보성 공지이거나 일정 정보가 없으면 자동 추가하지 않음
+    if (!noticeData || autoAdded || isInformationalNoticeForFetch) return;
     const startStr = noticeData.start_at_ai ?? noticeData.end_at_ai ?? null;
     if (!startStr) return;
     const startDate = new Date(startStr);
@@ -97,10 +106,21 @@ export default function NoticeDetailPage() {
     if (result.status === "added" || result.status === "duplicate") {
       setAutoAdded(true);
     }
-  }, [noticeData, autoAdded, addCalendarEvent]);
+  }, [noticeData, autoAdded, addCalendarEvent, isInformationalNoticeForFetch]);
 
   const postedAt = noticeData?.posted_at ?? (noticeData as any)?.postedAt ?? null;
   const hasCalendarRange = Boolean(noticeData?.start_at_ai || noticeData?.end_at_ai);
+  
+  // 일정 정보가 있는지 확인
+  const hasScheduleInfo = React.useMemo(() => {
+    return hasCalendarRange || keyDates.length > 0;
+  }, [hasCalendarRange, keyDates.length]);
+  
+  // 일정 관리 섹션 표시 여부: 일정 정보가 있고 정보성 공지가 아닐 때만 표시
+  const shouldShowScheduleSection = hasScheduleInfo && !isInformationalNoticeForFetch;
+  
+  // 자격 분석 섹션 표시 여부: 정보성 공지가 아닐 때만 표시
+  const shouldShowEligibilitySection = !isInformationalNoticeForFetch;
 
   const handleAddKeyDate = React.useCallback(
     (entry: DerivedKeyDate) => {
@@ -140,33 +160,35 @@ export default function NoticeDetailPage() {
   );
 
   return (
-    <main className="mx-auto mb-20 max-w-3xl px-4 py-6 animate-in fade-in duration-300">
+    <main className="mx-auto mb-20 max-w-4xl px-4 py-6 animate-in fade-in duration-300">
       {/* 뒤로가기 버튼 */}
-      <div className="mb-4">
+      <div className="mb-6">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="h-4 w-4" />
           뒤로
         </Button>
       </div>
 
-      {/* 상단: 제목 + 캘린더 버튼 */}
-      <header className="mb-6">
-        {isDetailLoading ? (
-          <div className="h-8 w-2/3 animate-pulse rounded bg-gray-200" />
-        ) : (
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {noticeData?.title ?? "제목 없음"}
-          </h1>
-        )}
-      </header>
+      <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8 lg:space-y-0">
+        {/* 메인 콘텐츠 영역 */}
+        <section className="lg:order-1">
+          {/* 제목 */}
+          <header className="mb-6">
+            {isDetailLoading ? (
+              <div className="h-8 w-2/3 animate-pulse rounded bg-gray-200" />
+            ) : (
+              <h1 className="text-3xl font-bold leading-tight text-gray-900">
+                {noticeData?.title ?? "제목 없음"}
+              </h1>
+            )}
+          </header>
 
-      <div className="space-y-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:gap-6 md:space-y-0">
-        <section className="mb-10 md:mb-0">
+          {/* 본문 */}
           {isDetailLoading ? (
             <div className="space-y-3">
               <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
@@ -182,14 +204,14 @@ export default function NoticeDetailPage() {
               </button>
             </div>
           ) : (
-            <article className="prose max-w-none">
+            <article className="prose prose-gray max-w-none">
               {sanitizedBody ? (
                 <div
-                  className="text-[15px] leading-7 text-gray-800"
+                  className="text-[15px] leading-8 text-gray-800 [&_p]:mb-4 [&_ul]:mb-4 [&_ol]:mb-4 [&_li]:mb-2"
                   dangerouslySetInnerHTML={{ __html: sanitizedBody }}
                 />
               ) : (
-                <div className="whitespace-pre-line text-[15px] leading-7 text-gray-800">
+                <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
                   {noticeData?.raw_text || noticeData?.body || "내용이 없습니다."}
                 </div>
               )}
@@ -197,18 +219,20 @@ export default function NoticeDetailPage() {
           )}
         </section>
 
-        <aside className="space-y-6 md:sticky md:top-24">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">공지 정보</h2>
-            <dl className="mt-3 space-y-2 text-xs text-gray-600">
+        {/* 사이드바 */}
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:order-2 lg:h-fit">
+          {/* 공지 정보 카드 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-base font-semibold text-gray-900">공지 정보</h2>
+            <dl className="space-y-3 text-sm">
               {noticeData?.source_college && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                   <dt className="font-medium text-gray-700">출처</dt>
                   <dd className="text-gray-600">{noticeData.source_college}</dd>
                 </div>
               )}
               {postedAt && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                   <dt className="font-medium text-gray-700">게시일</dt>
                   <dd className="text-gray-600">
                     {new Date(postedAt).toLocaleDateString("ko-KR", {
@@ -219,18 +243,18 @@ export default function NoticeDetailPage() {
                   </dd>
                 </div>
               )}
-              {(noticeData?.start_at_ai || noticeData?.end_at_ai) && (
-                <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
-                  <CalendarIcon className="mt-0.5 h-4 w-4" />
-                  <div>
+              {shouldShowScheduleSection && (noticeData?.start_at_ai || noticeData?.end_at_ai) && (
+                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
+                  <CalendarIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0">
                     <p className="font-semibold">AI 추출 일정</p>
-                    <p>
+                    <p className="mt-1">
                       {noticeData.start_at_ai
                         ? new Date(noticeData.start_at_ai).toLocaleString("ko-KR")
                         : "시작일 미정"}
                     </p>
                     {noticeData.end_at_ai && (
-                      <p>
+                      <p className="mt-1">
                         ~ {new Date(noticeData.end_at_ai).toLocaleString("ko-KR")}
                       </p>
                     )}
@@ -247,13 +271,14 @@ export default function NoticeDetailPage() {
             )}
           </div>
 
-          {noticeData && (keyDates.length > 0 || hasCalendarRange) && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-gray-900">일정 관리</h2>
-              <p className="mt-1 text-xs text-gray-500">마감 기한을 놓치지 않도록 서비스 캘린더에 저장해 보세요.</p>
+          {/* 일정 관리 섹션 - 일정 정보가 있고 정보성 공지가 아닐 때만 표시 */}
+          {noticeData && shouldShowScheduleSection && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-2 text-base font-semibold text-gray-900">일정 관리</h2>
+              <p className="mb-4 text-xs text-gray-500">마감 기한을 놓치지 않도록 서비스 캘린더에 저장해 보세요.</p>
 
               {keyDates.length > 0 && (
-                <div className="mt-3 space-y-3">
+                <div className="space-y-3">
                   {keyDates.map((entry) => {
                     const status = keyDateStatus[entry.id] ?? null;
                     const buttonLabel =
@@ -269,9 +294,9 @@ export default function NoticeDetailPage() {
                         className="rounded-lg border border-blue-100 bg-blue-50 p-3"
                       >
                         <div className="flex items-start gap-3">
-                          <Clock className="mt-1 h-4 w-4 text-blue-600" />
-                          <div className="flex-1 space-y-1">
-                            <p className="text-[11px] font-semibold text-blue-700">{entry.typeLabel}</p>
+                          <Clock className="mt-1 h-4 w-4 shrink-0 text-blue-600" />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="text-xs font-semibold text-blue-700">{entry.typeLabel}</p>
                             <p className="text-sm font-medium text-blue-900">{entry.dateText}</p>
                             {entry.parsedDate ? (
                               <p className="text-[11px] text-blue-700">
@@ -321,32 +346,35 @@ export default function NoticeDetailPage() {
               )}
 
               {hasCalendarRange && (
-                <div className={keyDates.length > 0 ? "mt-4" : "mt-3"}>
+                <div className={keyDates.length > 0 ? "mt-4" : ""}>
                   <CalendarButton notice={noticeData} />
                 </div>
               )}
 
               {autoAdded && (
-                <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700">
+                <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                   이 일정은 자동으로 서비스 캘린더에 저장되었습니다.
                 </p>
               )}
             </div>
           )}
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">자격 분석</h2>
-            {isEligibilityError ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                자격 분석 결과를 불러오지 못했습니다.{" "}
-                <button className="underline" onClick={() => refetchEligibility()}>
-                  다시 시도
-                </button>
-              </div>
-            ) : (
-              <EligibilityResult data={eligibilityData} isLoading={isLoading} />
-            )}
-          </div>
+          {/* 자격 분석 섹션 - 정보성 공지가 아닐 때만 표시 */}
+          {shouldShowEligibilitySection && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-2 text-base font-semibold text-gray-900">자격 분석</h2>
+              {isEligibilityError ? (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                  자격 분석 결과를 불러오지 못했습니다.{" "}
+                  <button className="underline" onClick={() => refetchEligibility()}>
+                    다시 시도
+                  </button>
+                </div>
+              ) : (
+                <EligibilityResult data={eligibilityData} isLoading={isLoading} />
+              )}
+            </div>
+          )}
         </aside>
       </div>
     </main>

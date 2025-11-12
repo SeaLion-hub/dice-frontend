@@ -14,14 +14,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useCalendarStore } from "@/stores/useCalendarStore";
 
 export default function CalendarPage() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
+  const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
+  const [newEventTitle, setNewEventTitle] = React.useState("");
+  const [newEventEndDate, setNewEventEndDate] = React.useState("");
   const events = useCalendarStore((state) => state.events);
   const hydrate = useCalendarStore((state) => state.hydrate);
+  const addEvent = useCalendarStore((state) => state.addEvent);
   const removeEvent = useCalendarStore((state) => state.removeEvent);
 
   const year = currentDate.getFullYear();
@@ -79,6 +85,48 @@ export default function CalendarPage() {
     }
   };
 
+  // 날짜 클릭 핸들러
+  const handleDateClick = (date: Date | null) => {
+    if (!date) return;
+    setSelectedDate(date);
+    setNewEventTitle("");
+    setNewEventEndDate("");
+  };
+
+  // 새 일정 추가
+  const handleAddEvent = () => {
+    if (!selectedDate || !newEventTitle.trim()) {
+      alert("제목을 입력해주세요.");
+      return;
+    }
+
+    const startDate = new Date(selectedDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    let endDate: Date | null = null;
+    if (newEventEndDate) {
+      endDate = new Date(newEventEndDate);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    const result = addEvent({
+      noticeId: `manual_${Date.now()}`,
+      title: newEventTitle.trim(),
+      startDate,
+      endDate,
+      source: "manual",
+    });
+
+    if (result.status === "duplicate") {
+      alert("이미 등록된 일정입니다.");
+      return;
+    }
+
+    setSelectedDate(null);
+    setNewEventTitle("");
+    setNewEventEndDate("");
+  };
+
   // 캘린더 그리드 생성
   const calendarDays = React.useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -102,25 +150,38 @@ export default function CalendarPage() {
     return days;
   }, [year, month]);
 
-  // 특정 날짜의 이벤트 가져오기 (시작일 또는 종료일이 해당 날짜에 포함되는 이벤트)
-  const getEventsForDate = (date: Date | null): CalendarEvent[] => {
+  // 특정 날짜의 이벤트 가져오기 (시작일 또는 종료일만 표시)
+  const getEventsForDate = (date: Date | null): Array<{ event: CalendarEvent; type: "start" | "end" }> => {
     if (!date) return [];
     const targetDateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
     const targetDateEnd = targetDateStart + 24 * 60 * 60 * 1000 - 1;
 
-    return monthEvents.filter((event) => {
-      const eventStart = new Date(event.startDate).getTime();
-      const eventEnd = event.endDate
-        ? new Date(event.endDate).getTime()
-        : eventStart;
+    const result: Array<{ event: CalendarEvent; type: "start" | "end" }> = [];
 
-      // 이벤트가 해당 날짜와 겹치는지 확인
-      return (
-        (eventStart >= targetDateStart && eventStart < targetDateEnd) ||
-        (eventEnd >= targetDateStart && eventEnd < targetDateEnd) ||
-        (eventStart < targetDateStart && eventEnd >= targetDateEnd)
-      );
+    monthEvents.forEach((event) => {
+      const eventStart = new Date(event.startDate).getTime();
+      const eventStartDate = new Date(eventStart);
+      const eventStartDay = new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), eventStartDate.getDate()).getTime();
+      
+      // 시작일이 해당 날짜인지 확인
+      if (eventStartDay >= targetDateStart && eventStartDay < targetDateEnd) {
+        result.push({ event, type: "start" });
+      }
+
+      // 종료일이 있고, 시작일과 다른 경우 종료일도 확인
+      if (event.endDate) {
+        const eventEnd = new Date(event.endDate).getTime();
+        const eventEndDate = new Date(eventEnd);
+        const eventEndDay = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate()).getTime();
+        
+        // 종료일이 해당 날짜이고 시작일과 다른 경우만 추가
+        if (eventEndDay >= targetDateStart && eventEndDay < targetDateEnd && eventStartDay !== eventEndDay) {
+          result.push({ event, type: "end" });
+        }
+      }
     });
+
+    return result;
   };
 
   // 날짜 포맷팅
@@ -191,7 +252,10 @@ export default function CalendarPage() {
                 key={index}
                 className={`min-h-[80px] border p-1 ${
                   isCurrentMonth ? "bg-white" : "bg-gray-50"
-                } ${isToday ? "ring-2 ring-blue-500" : ""}`}
+                } ${isToday ? "ring-2 ring-blue-500" : ""} ${
+                  isCurrentMonth ? "cursor-pointer hover:bg-gray-50" : ""
+                }`}
+                onClick={() => isCurrentMonth && handleDateClick(date)}
               >
                 {date && (
                   <>
@@ -207,13 +271,21 @@ export default function CalendarPage() {
                       {date.getDate()}
                     </div>
                     <div className="mt-1 space-y-1">
-                      {dayEvents.slice(0, 2).map((event) => (
+                      {dayEvents.slice(0, 2).map(({ event, type }) => (
                         <div
-                          key={event.id}
-                          onClick={() => setSelectedEvent(event)}
-                          className="cursor-pointer truncate rounded bg-blue-100 px-1 py-0.5 text-[10px] text-blue-700 hover:bg-blue-200"
-                          title={event.title}
+                          key={`${event.id}-${type}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvent(event);
+                          }}
+                          className={`cursor-pointer truncate rounded px-1 py-0.5 text-[10px] hover:opacity-80 ${
+                            type === "start"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                          title={`${event.title} (${type === "start" ? "시작일" : "마감일"})`}
                         >
+                          {type === "start" ? "▶ " : "◀ "}
                           {event.title}
                         </div>
                       ))}
@@ -314,13 +386,15 @@ export default function CalendarPage() {
                   </div>
                 </button>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push(`/notices/${event.noticeId}`)}
-                  >
-                    보기
-                  </Button>
+                  {!event.noticeId.startsWith("manual_") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(`/notices/${event.noticeId}`)}
+                    >
+                      보기
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -385,23 +459,110 @@ export default function CalendarPage() {
               )}
             </div>
             <DialogFooter>
+              {selectedEvent.noticeId.startsWith("manual_") ? (
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleDeleteEvent(selectedEvent.id);
+                  }}
+                >
+                  삭제
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      router.push(`/notices/${selectedEvent.noticeId}`);
+                      setSelectedEvent(null);
+                    }}
+                  >
+                    공지 보기
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      handleDeleteEvent(selectedEvent.id);
+                    }}
+                  >
+                    삭제
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* 일정 추가 모달 */}
+      {selectedDate && (
+        <Dialog
+          open={!!selectedDate}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedDate(null);
+              setNewEventTitle("");
+              setNewEventEndDate("");
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>일정 추가</DialogTitle>
+              <DialogDescription>
+                {selectedDate.toLocaleDateString("ko-KR", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}{" "}
+                일정을 추가합니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="event-title">제목 *</Label>
+                <Input
+                  id="event-title"
+                  value={newEventTitle}
+                  onChange={(e) => setNewEventTitle(e.target.value)}
+                  placeholder="일정 제목을 입력하세요"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="event-start-date">시작일</Label>
+                <Input
+                  id="event-start-date"
+                  type="date"
+                  value={selectedDate.toISOString().split("T")[0]}
+                  disabled
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="event-end-date">종료일 (선택사항)</Label>
+                <Input
+                  id="event-end-date"
+                  type="date"
+                  value={newEventEndDate}
+                  onChange={(e) => setNewEventEndDate(e.target.value)}
+                  min={selectedDate.toISOString().split("T")[0]}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <DialogFooter>
               <Button
-                className="flex-1"
+                variant="outline"
                 onClick={() => {
-                  router.push(`/notices/${selectedEvent.noticeId}`);
-                  setSelectedEvent(null);
+                  setSelectedDate(null);
+                  setNewEventTitle("");
+                  setNewEventEndDate("");
                 }}
               >
-                공지 보기
+                취소
               </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  handleDeleteEvent(selectedEvent.id);
-                }}
-              >
-                삭제
-              </Button>
+              <Button onClick={handleAddEvent}>추가</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
