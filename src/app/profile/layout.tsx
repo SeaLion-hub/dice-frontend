@@ -1,27 +1,17 @@
-import type { ReactNode } from "react";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import BottomNav from "@/components/nav/BottomNav";
+// src/app/profile/layout.tsx
+"use client";
 
-const LOGIN_REDIRECT_PARAM = "next";
-const LOGIN_PATH = "/login";
-const PROFILE_PATH = "/profile";
+import { Suspense } from "react";
+import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
 
-export default async function ProfileLayout({ children }: { children: ReactNode }) {
-  const cookieStore = await cookies();
-  const tokenCookie =
-    typeof cookieStore?.get === "function" ? cookieStore.get("DICE_TOKEN") : undefined;
-
-  if (!tokenCookie || !tokenCookie.value) {
-    const searchParams = new URLSearchParams({ [LOGIN_REDIRECT_PARAM]: PROFILE_PATH });
-    redirect(`${LOGIN_PATH}?${searchParams.toString()}`);
-  }
-
+export default function ProfileLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <>
+    <Suspense fallback={<NoticeCardSkeleton />}>
       {children}
-      <BottomNav />
-    </>
+    </Suspense>
   );
 }
-

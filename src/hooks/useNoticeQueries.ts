@@ -64,11 +64,26 @@ export function useNoticeDetail(id: string | null) {
       // 백엔드 엔드포인트 (예: /api/notices/123)
       const res = await fetchWithAuth(`/api/notices/${id}`);
       if (!res.ok) {
-        throw new Error("Failed to fetch notice detail");
+        // 구조화된 에러 응답 파싱 시도
+        let errorMessage = "공지사항을 불러오는데 실패했습니다.";
+        try {
+          const errorData = await res.json();
+          if (errorData?.error?.message) {
+            errorMessage = errorData.error.message;
+          }
+        } catch {
+          // JSON 파싱 실패 시 기본 메시지 사용
+        }
+        const error = new Error(errorMessage);
+        (error as any).status = res.status;
+        (error as any).response = { data: await res.json().catch(() => ({})) };
+        throw error;
       }
       return res.json();
     },
     enabled: !!id, // id가 있을 때만 쿼리 실행
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    gcTime: 10 * 60 * 1000, // 10분 후 가비지 컬렉션
   });
 }
 
@@ -93,10 +108,25 @@ export function useNoticeEligibility(id: string | null, enabled: boolean = true)
         body: JSON.stringify({}),
       });
       if (!res.ok) {
-        throw new Error("Failed to fetch notice eligibility");
+        // 구조화된 에러 응답 파싱 시도
+        let errorMessage = "자격 분석 결과를 불러오는데 실패했습니다.";
+        try {
+          const errorData = await res.json();
+          if (errorData?.error?.message) {
+            errorMessage = errorData.error.message;
+          }
+        } catch {
+          // JSON 파싱 실패 시 기본 메시지 사용
+        }
+        const error = new Error(errorMessage);
+        (error as any).status = res.status;
+        (error as any).response = { data: await res.json().catch(() => ({})) };
+        throw error;
       }
       return res.json();
     },
     enabled: !!id && enabled, // id가 있고 enabled가 true일 때만 쿼리 실행
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지 (자격 분석은 자주 변경될 수 있음)
+    gcTime: 5 * 60 * 1000, // 5분 후 가비지 컬렉션
   });
 }

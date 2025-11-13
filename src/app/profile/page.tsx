@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQueryInvalidation } from "@/hooks/useQueryInvalidation";
 import {
   ALL_ALLOWED_KEYWORDS,
   ALLOWED_GRADES,
@@ -25,6 +26,8 @@ import { ProfileKeywordSelector } from "@/components/profile/ProfileKeywordSelec
 import { ProfileBasicFields } from "@/components/profile/ProfileBasicFields";
 import { ProfileAdditionalFields } from "@/components/profile/ProfileAdditionalFields";
 import { ProfileLanguageFields } from "@/components/profile/ProfileLanguageFields";
+import BottomNav from "@/components/nav/BottomNav";
+import { useApiError } from "@/hooks/useApiError";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 const ALLOWED_KEYWORD_SET = new Set(ALL_ALLOWED_KEYWORDS);
@@ -94,9 +97,12 @@ export default function ProfilePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { token, logout, user } = useAuthStore();
+  const { getErrorMessage } = useApiError();
 
   const {
     data: userMe,
+    isError: isUserMeError,
+    error: userMeError,
   } = useQuery<UserMe>({
     // Include token so switching accounts refetches instead of reusing cache
     queryKey: ["user", "me", token],
@@ -104,15 +110,31 @@ export default function ProfilePage() {
       const res = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch user info");
+      if (!res.ok) {
+        let errorMessage = "사용자 정보를 불러오는데 실패했습니다.";
+        try {
+          const errorData = await res.json();
+          if (errorData?.error?.message) {
+            errorMessage = errorData.error.message;
+          }
+        } catch {
+          // JSON 파싱 실패 시 기본 메시지 사용
+        }
+        const error = new Error(errorMessage);
+        (error as any).status = res.status;
+        throw error;
+      }
       return res.json();
     },
     enabled: !!token,
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
   });
 
   const {
     data: profile,
     isLoading: isProfileLoading,
+    isError: isProfileError,
+    error: profileError,
   } = useQuery<UserProfile | null>({
     // Include token to avoid showing another account's cached profile
     queryKey: ["user", "profile", token],
@@ -124,11 +146,23 @@ export default function ProfilePage() {
         return null;
       }
       if (!res.ok) {
-        throw new Error("Failed to fetch profile");
+        let errorMessage = "프로필을 불러오는데 실패했습니다.";
+        try {
+          const errorData = await res.json();
+          if (errorData?.error?.message) {
+            errorMessage = errorData.error.message;
+          }
+        } catch {
+          // JSON 파싱 실패 시 기본 메시지 사용
+        }
+        const error = new Error(errorMessage);
+        (error as any).status = res.status;
+        throw error;
       }
       return res.json();
     },
     enabled: !!token,
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
   });
 
   const {
@@ -251,6 +285,8 @@ export default function ProfilePage() {
     }
   }, [isProfileLoading]);
 
+  const { invalidateUserProfile, invalidateAllNotices } = useQueryInvalidation();
+
   const updateProfile = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       const res = await fetch("/api/auth/me/profile", {
@@ -264,26 +300,45 @@ export default function ProfilePage() {
 
       if (!res.ok) {
         const error = await res.json().catch(() => null);
-        throw new Error(error?.error || "Failed to update profile");
+        throw new Error(error?.error?.message || error?.error || "Failed to update profile");
       }
 
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", "profile"] });
-      // Refresh personalized and related caches after profile change
-      queryClient.invalidateQueries({ queryKey: ["recommended"] });
-      queryClient.invalidateQueries({ queryKey: ["notice", "eligibility"] });
-      queryClient.invalidateQueries({ queryKey: ["notices"] });
-      alert("프로필이 업데이트되었습니다.");
+      // 프로필 업데이트 시 관련된 모든 쿼리 무효화
+      invalidateUserProfile();
+      invalidateAllNotices();
+      // 성공 메시지 표시 (alert 대신 토스트 사용 권장)
+      const successMessage = "프로필이 업데이트되었습니다.";
+      // 간단한 알림 (나중에 토스트 라이브러리로 교체 가능)
+      if (typeof window !== "undefined") {
+        const notification = document.createElement("div");
+        notification.className = "fixed top-4 right-4 z-50 rounded-lg bg-green-500 px-4 py-2 text-white shadow-lg";
+        notification.textContent = successMessage;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.remove();
+        }, 3000);
+      }
     },
     onError: (error: Error) => {
-      alert(`프로필 업데이트 실패: ${error.message}`);
+      const errorMessage = getErrorMessage(error) || "프로필 업데이트에 실패했습니다.";
+      // 에러 메시지 표시
+      if (typeof window !== "undefined") {
+        const notification = document.createElement("div");
+        notification.className = "fixed top-4 right-4 z-50 rounded-lg bg-red-500 px-4 py-2 text-white shadow-lg";
+        notification.textContent = errorMessage;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.remove();
+        }, 5000);
+      }
     },
   });
 
   const handleLogout = () => {
-    if (confirm("로그아웃하시겠습니까?")) {
+    if (typeof window !== "undefined" && window.confirm("로그아웃하시겠습니까?")) {
       logout();
       document.cookie =
         "DICE_TOKEN=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
@@ -454,14 +509,52 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 pb-32 animate-in fade-in duration-300">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">설정</h1>
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-24 animate-in fade-in duration-300">
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">설정</h1>
+        {userMe && (
+          <p className="mt-1 text-sm text-gray-600">
+            {userMe.email}
+          </p>
+        )}
+      </header>
+
+      {/* 에러 상태 표시 */}
+      {isUserMeError && (
+        <div 
+          className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          role="alert"
+          aria-live="polite"
+        >
+          <p className="mb-2 font-semibold">사용자 정보를 불러오는데 실패했습니다.</p>
+          <p className="text-xs">{getErrorMessage(userMeError)}</p>
+        </div>
+      )}
+
+      {isProfileError && (
+        <div 
+          className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          role="alert"
+          aria-live="polite"
+        >
+          <p className="mb-2 font-semibold">프로필을 불러오는데 실패했습니다.</p>
+          <p className="text-xs">{getErrorMessage(profileError)}</p>
+        </div>
+      )}
 
       {/* 프로필 완성도 섹션 */}
-      {profile && (
+      {isProfileLoading ? (
+        <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="h-5 w-5 animate-pulse rounded bg-gray-200" />
+            <div className="h-6 w-32 animate-pulse rounded bg-gray-200" />
+          </div>
+          <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
+        </section>
+      ) : profile ? (
         <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-            <User className="h-5 w-5" />
+            <User className="h-5 w-5" aria-hidden="true" />
             프로필 완성도
           </h2>
           
@@ -531,13 +624,27 @@ export default function ProfilePage() {
             )}
           </div>
         </section>
-      )}
+      ) : null}
 
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold">프로필 수정</h2>
 
         {isProfileLoading ? (
-          <div className="text-sm text-gray-500">프로필을 불러오는 중...</div>
+          <div className="space-y-4" role="status" aria-label="프로필 로딩 중">
+            <div className="space-y-2">
+              <div className="h-4 w-24 animate-pulse rounded bg-gray-200" />
+              <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+              <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-20 animate-pulse rounded bg-gray-200" />
+              <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+            </div>
+            <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+          </div>
         ) : (
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <ProfileBasicFields form={form} majors={majorsData} majorsLoading={majorsLoading} />
@@ -548,10 +655,11 @@ export default function ProfilePage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={updateProfile.isPending}
+              disabled={updateProfile.isPending || !isFormDirty}
+              aria-label={updateProfile.isPending ? "저장 중" : "프로필 저장"}
             >
-              <Save className="mr-2 h-4 w-4" />
-              {updateProfile.isPending ? "저장 중..." : "프로필 저장"}
+              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+              {updateProfile.isPending ? "저장 중..." : isFormDirty ? "프로필 저장" : "변경사항 없음"}
             </Button>
           </form>
         )}
@@ -563,11 +671,15 @@ export default function ProfilePage() {
           variant="destructive"
           onClick={handleLogout}
           className="w-full"
+          aria-label="로그아웃"
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
           로그아웃
         </Button>
       </section>
+
+      {/* 하단 네비게이터 바 */}
+      <BottomNav />
     </main>
   );
 }

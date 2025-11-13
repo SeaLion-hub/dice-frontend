@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import Providers from "./providers"; // ✅ 우리가 방금 만든 전역 Provider 임포트
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 // 폰트 설정 (네 기존 코드 유지)
 const geistSans = Geist({
@@ -35,7 +36,9 @@ export default function RootLayout({
           Providers 안에서 children이 렌더링되므로
           모든 페이지/컴포넌트에서 React Query를 바로 쓸 수 있게 됨
         */}
-        <Providers>{children}</Providers>
+        <ErrorBoundary>
+          <Providers>{children}</Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );

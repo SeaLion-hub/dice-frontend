@@ -14,9 +14,13 @@ import { Button } from "@/components/ui/button";
 import { useCalendarStore } from "@/stores/useCalendarStore";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import NoticeCard from "@/components/notices/NoticeCard";
+import { useApiError } from "@/hooks/useApiError";
+import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
 
 export default function NoticeDetailPage() {
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
+  
   // 1) URL 파라미터에서 id 추출
   const params = useParams<{ id: string }>();
   const id = params?.id?.toString() ?? null;
@@ -208,8 +212,9 @@ export default function NoticeDetailPage() {
           size="sm"
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          aria-label="이전 페이지로 돌아가기"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           뒤로
         </Button>
       </div>
@@ -237,11 +242,24 @@ export default function NoticeDetailPage() {
               <div className="h-4 w-9/12 animate-pulse rounded bg-gray-200" />
             </div>
           ) : isDetailError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              상세 정보를 불러오는 중 오류가 발생했습니다.{" "}
-              <button className="underline" onClick={() => refetchDetail()}>
+            <div 
+              className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+              role="alert"
+              aria-live="polite"
+            >
+              <p className="mb-2">
+                {noticeData 
+                  ? "일부 정보를 불러오는데 실패했습니다."
+                  : getErrorMessage(isDetailError) || "상세 정보를 불러오는 중 오류가 발생했습니다."}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchDetail()}
+                aria-label="다시 시도"
+              >
                 다시 시도
-              </button>
+              </Button>
             </div>
           ) : (
             <article className="prose prose-gray max-w-none">
@@ -370,14 +388,25 @@ export default function NoticeDetailPage() {
               <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 className="mb-2 text-base font-semibold text-gray-900">AI 자격 분석</h2>
                 {isEligibilityError ? (
-                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                    자격 분석 결과를 불러오지 못했습니다.{" "}
-                    <button className="underline" onClick={() => refetchEligibility()}>
+                  <div 
+                    className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700"
+                    role="alert"
+                    aria-live="polite"
+                  >
+                    <p className="mb-2">
+                      {getErrorMessage(isEligibilityError) || "자격 분석 결과를 불러오지 못했습니다."}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchEligibility()}
+                      aria-label="자격 분석 다시 시도"
+                    >
                       다시 시도
-                    </button>
+                    </Button>
                   </div>
                 ) : (
-                  <EligibilityResult data={eligibilityData} isLoading={isLoading} />
+                  <EligibilityResult data={eligibilityData} isLoading={isEligibilityLoading} />
                 )}
               </div>
             );
@@ -439,22 +468,40 @@ export default function NoticeDetailPage() {
       </div>
 
       {/* 관련 공지 추천 섹션 */}
-      {relatedNotices.length > 0 && (
+      {isRelatedLoading ? (
         <section className="mt-12">
           <h2 className="mb-4 text-xl font-semibold text-gray-900">관련 공지</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {relatedNotices.map((notice) => (
+            {Array.from({ length: 3 }).map((_, index) => (
+              <NoticeCardSkeleton key={index} />
+            ))}
+          </div>
+        </section>
+      ) : relatedNotices.length > 0 ? (
+        <section className="mt-12">
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">관련 공지</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {relatedNotices.map((notice) => (
               <div
                 key={notice.id}
                 onClick={() => router.push(`/notices/${notice.id}`)}
-                className="cursor-pointer"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/notices/${notice.id}`);
+                  }
+                }}
+                className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                role="button"
+                tabIndex={0}
+                aria-label={`${notice.title} 공지사항 보기`}
               >
                 <NoticeCard item={notice} />
               </div>
             ))}
           </div>
         </section>
-      )}
+      ) : null}
     </main>
   );
 }

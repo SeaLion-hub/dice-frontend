@@ -147,5 +147,7 @@ export function useInfiniteNotices({ query, pageSize = 20, enabled = true }: Use
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage?.hasNext ? lastPage.nextPage : undefined),
     enabled,
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
+    gcTime: 5 * 60 * 1000, // 5분 후 가비지 컬렉션
   });
 }
