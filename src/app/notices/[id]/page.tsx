@@ -52,12 +52,10 @@ export default function NoticeDetailPage() {
   const isLoading = isDetailLoading || (shouldFetchEligibility && isEligibilityLoading);
 
   const addCalendarEvent = useCalendarStore((state) => state.addEvent);
-  const [autoAdded, setAutoAdded] = React.useState(false);
   const [keyDateStatus, setKeyDateStatus] = React.useState<Record<string, "added" | "duplicate">>({});
   const keyDateTimeouts = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   React.useEffect(() => {
-    setAutoAdded(false);
     setKeyDateStatus({});
     Object.values(keyDateTimeouts.current).forEach((timeoutId) => {
       clearTimeout(timeoutId);
@@ -85,34 +83,6 @@ export default function NoticeDetailPage() {
     return DOMPurify.sanitize(noticeData.body_html);
   }, [noticeData?.body_html]);
 
-  React.useEffect(() => {
-    // 정보성 공지이거나 일정 정보가 없으면 자동 추가하지 않음
-    if (!noticeData || autoAdded || isInformationalNoticeForFetch) return;
-    const startStr = noticeData.start_at_ai ?? noticeData.end_at_ai ?? null;
-    if (!startStr) return;
-    const startDate = new Date(startStr);
-    if (Number.isNaN(startDate.getTime())) return;
-
-    let endDate: Date | null = null;
-    if (noticeData.end_at_ai) {
-      const parsedEnd = new Date(noticeData.end_at_ai);
-      if (!Number.isNaN(parsedEnd.getTime())) {
-        endDate = parsedEnd;
-      }
-    }
-
-    const result = addCalendarEvent({
-      noticeId: noticeData.id,
-      title: noticeData.title || "공지사항",
-      startDate,
-      endDate,
-      source: "auto",
-    });
-
-    if (result.status === "added" || result.status === "duplicate") {
-      setAutoAdded(true);
-    }
-  }, [noticeData, autoAdded, addCalendarEvent, isInformationalNoticeForFetch]);
 
   const postedAt = noticeData?.posted_at ?? (noticeData as any)?.postedAt ?? null;
   const hasCalendarRange = Boolean(noticeData?.start_at_ai || noticeData?.end_at_ai);
@@ -367,12 +337,6 @@ export default function NoticeDetailPage() {
                   <CalendarButton notice={noticeData} />
                 </div>
               )}
-
-              {autoAdded && (
-                <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                  이 일정은 자동으로 서비스 캘린더에 저장되었습니다.
-                </p>
-              )}
             </div>
           )}
 
@@ -435,24 +399,6 @@ export default function NoticeDetailPage() {
                       day: "numeric",
                     })}
                   </dd>
-                </div>
-              )}
-              {shouldShowScheduleSection && (noticeData?.start_at_ai || noticeData?.end_at_ai) && (
-                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
-                  <CalendarIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-semibold">AI 추출 일정</p>
-                    <p className="mt-1">
-                      {noticeData.start_at_ai
-                        ? new Date(noticeData.start_at_ai).toLocaleString("ko-KR")
-                        : "시작일 미정"}
-                    </p>
-                    {noticeData.end_at_ai && (
-                      <p className="mt-1">
-                        ~ {new Date(noticeData.end_at_ai).toLocaleString("ko-KR")}
-                      </p>
-                    )}
-                  </div>
                 </div>
               )}
             </dl>
