@@ -130,7 +130,34 @@ export default function NoticesPage() {
 
   const items = useMemo(() => {
     if (!data) return [] as Notice[];
-    return data.pages.flatMap((page) => page?.items ?? []) as Notice[];
+    const allItems = data.pages.flatMap((page) => page?.items ?? []) as Notice[];
+    // 중복 제거: 같은 ID를 가진 항목 중 첫 번째만 유지 (강화된 버전)
+    const seen = new Map<string | number, Notice>();
+    const uniqueItems: Notice[] = [];
+    
+    for (const notice of allItems) {
+      const noticeId = notice.id;
+      if (!noticeId) {
+        // ID가 없는 항목은 건너뛰기 (데이터 무결성 보장)
+        console.warn("Notice without ID found:", notice);
+        continue;
+      }
+      
+      if (!seen.has(noticeId)) {
+        seen.set(noticeId, notice);
+        uniqueItems.push(notice);
+      } else {
+        // 중복 발견 시 로깅 (개발 환경에서만)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Duplicate notice ID detected: ${noticeId}`, {
+            existing: seen.get(noticeId),
+            duplicate: notice,
+          });
+        }
+      }
+    }
+    
+    return uniqueItems;
   }, [data]);
 
   const handleFilterSheetOpenChange = useCallback((open: boolean) => {
