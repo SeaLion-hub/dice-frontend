@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LogOut, Save, User, Mail } from "lucide-react";
+import { LogOut, Save, User, Bell } from "lucide-react";
 
 import { useAuthStore } from "@/stores/useAuthStore";
 import { Button } from "@/components/ui/button";
@@ -735,6 +735,9 @@ export default function ProfilePage() {
         )}
       </section>
 
+      {/* 알림 설정 섹션 */}
+      <NotificationSettingsSection token={token} />
+
       <section className="rounded-lg border border-red-200 bg-red-50 p-6">
         <h2 className="mb-4 text-lg font-semibold text-red-900">계정 관리</h2>
         <Button
@@ -751,6 +754,270 @@ export default function ProfilePage() {
       {/* 하단 네비게이터 바 */}
       <BottomNav />
     </main>
+  );
+}
+
+// 알림 설정 컴포넌트
+function NotificationSettingsSection({ token }: { token: string | null }) {
+  const [enabled, setEnabled] = React.useState(true);
+  const [deadlineDays, setDeadlineDays] = React.useState<number[]>([3, 7]);
+  const [categories, setCategories] = React.useState<string[]>([]);
+  const [emailNotifications, setEmailNotifications] = React.useState(false);
+  const [pushNotifications, setPushNotifications] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const availableCategories = [
+    "#학사",
+    "#장학",
+    "#취업",
+    "#행사",
+    "#공모전/대회",
+    "#국제교류",
+    "#일반",
+  ];
+
+  const availableDeadlineDays = [1, 2, 3, 5, 7, 14];
+
+  // 알림 설정 로드
+  React.useEffect(() => {
+    if (!token) return;
+
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/notifications/settings", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setEnabled(data.enabled ?? true);
+          setDeadlineDays(data.deadline_days || [3, 7]);
+          setCategories(data.categories || []);
+          setEmailNotifications(data.email_notifications ?? false);
+          setPushNotifications(data.push_notifications ?? true);
+        }
+      } catch (error) {
+        console.error("Failed to load notification settings:", error);
+      }
+    }
+
+    loadSettings();
+  }, [token]);
+
+  // 알림 설정 저장
+  const handleSave = async () => {
+    if (!token) return;
+
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/notifications/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          enabled,
+          deadline_days: deadlineDays,
+          categories,
+          email_notifications: emailNotifications,
+          push_notifications: pushNotifications,
+        }),
+      });
+
+      if (res.ok) {
+        // 성공 메시지 표시
+        const notification = document.createElement("div");
+        notification.className =
+          "fixed top-4 right-4 z-50 rounded-lg bg-green-500 px-4 py-2 text-white shadow-lg";
+        notification.textContent = "알림 설정이 저장되었습니다.";
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.remove();
+        }, 3000);
+      } else {
+        throw new Error("Failed to save settings");
+      }
+    } catch (error) {
+      console.error("Failed to save notification settings:", error);
+      const notification = document.createElement("div");
+      notification.className =
+        "fixed top-4 right-4 z-50 rounded-lg bg-red-500 px-4 py-2 text-white shadow-lg";
+      notification.textContent = "알림 설정 저장에 실패했습니다.";
+      document.body.appendChild(notification);
+      setTimeout(() => {
+        notification.remove();
+      }, 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleDeadlineDay = (day: number) => {
+    setDeadlineDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
+  const toggleCategory = (category: string) => {
+    setCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  if (!token) {
+    return null;
+  }
+
+  return (
+    <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+        <Bell className="h-5 w-5" aria-hidden="true" />
+        알림 설정
+      </h2>
+
+      <div className="space-y-6">
+        {/* 알림 활성화/비활성화 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium text-gray-900">알림 받기</div>
+            <div className="text-sm text-gray-500">
+              마감 임박 공지에 대한 알림을 받습니다
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEnabled(!enabled)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              enabled ? "bg-blue-600" : "bg-gray-300"
+            }`}
+            aria-label={enabled ? "알림 끄기" : "알림 켜기"}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                enabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        {enabled && (
+          <>
+            {/* 마감일 알림 설정 */}
+            <div>
+              <div className="mb-2 font-medium text-gray-900">
+                마감 몇 일 전에 알림 받을까요?
+              </div>
+              <div className="text-sm text-gray-500 mb-3">
+                여러 개 선택 가능합니다
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {availableDeadlineDays.map((day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleDeadlineDay(day)}
+                    className={`rounded-full px-4 py-2 text-sm transition-colors ${
+                      deadlineDays.includes(day)
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {day}일 전
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 카테고리 필터 */}
+            <div>
+              <div className="mb-2 font-medium text-gray-900">
+                알림 받을 카테고리
+              </div>
+              <div className="text-sm text-gray-500 mb-3">
+                선택하지 않으면 모든 카테고리에 대해 알림을 받습니다
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {availableCategories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => toggleCategory(category)}
+                    className={`rounded-full px-4 py-2 text-sm transition-colors ${
+                      categories.includes(category)
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 알림 방식 설정 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-gray-900">브라우저 알림</div>
+                  <div className="text-sm text-gray-500">
+                    브라우저 푸시 알림을 받습니다
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPushNotifications(!pushNotifications)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    pushNotifications ? "bg-blue-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      pushNotifications ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-gray-900">이메일 알림</div>
+                  <div className="text-sm text-gray-500">
+                    이메일로 알림을 받습니다 (준비 중)
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailNotifications(!emailNotifications)}
+                  disabled
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    emailNotifications ? "bg-blue-600" : "bg-gray-300"
+                  } opacity-50 cursor-not-allowed`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      emailNotifications ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* 저장 버튼 */}
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full"
+              aria-label="알림 설정 저장"
+            >
+              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+              {isSaving ? "저장 중..." : "알림 설정 저장"}
+            </Button>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 

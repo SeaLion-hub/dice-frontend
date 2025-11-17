@@ -186,23 +186,48 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
     return null;
   }, []);
   
-  // 마감일이 지났는지 확인하는 함수 (단순화된 버전)
-  const isDeadlinePassed = React.useMemo(() => {
-    // end_at_ai 또는 endAtAi 필드 확인
+  // 일정이 추출된 공지인지 확인하는 함수
+  const hasSchedule = React.useMemo(() => {
+    const startDateValue = item.start_at_ai ?? (item as any).startAtAi ?? null;
     const endDateValue = item.end_at_ai ?? (item as any).endAtAi ?? null;
-    if (!endDateValue) {
+    return !!(startDateValue || endDateValue);
+  }, [item.start_at_ai, item.end_at_ai]);
+
+  // 마감일이 지났는지 확인하는 함수 (일정이 추출된 공지에 대하여)
+  const isDeadlinePassed = React.useMemo(() => {
+    // 일정이 추출되지 않은 공지는 마감 여부를 확인하지 않음
+    if (!hasSchedule) {
+      return false;
+    }
+
+    // 백엔드에서 계산한 is_closed 필드가 있으면 우선 사용
+    if (item.is_closed !== undefined) {
+      return item.is_closed;
+    }
+
+    // end_at_ai 또는 endAtAi 필드 확인 (우선순위 1)
+    let deadlineDateValue = item.end_at_ai ?? (item as any).endAtAi ?? null;
+    
+    // end_at_ai가 없고 start_at_ai만 있는 경우, start_at_ai를 기준으로 마감 여부 확인
+    if (!deadlineDateValue) {
+      deadlineDateValue = item.start_at_ai ?? (item as any).startAtAi ?? null;
+    }
+    
+    if (!deadlineDateValue) {
       return false;
     }
     
     // 날짜 파싱
-    const deadlineDate = parseDate(endDateValue);
+    const deadlineDate = parseDate(deadlineDateValue);
     if (!deadlineDate) {
       // 개발 모드에서 파싱 실패 로깅
       if (process.env.NODE_ENV === 'development') {
         console.warn('[Deadline Check] Failed to parse date', {
           noticeId: item.id,
           title: item.title?.substring(0, 30),
-          endDateValue,
+          deadlineDateValue,
+          hasEndAt: !!(item.end_at_ai ?? (item as any).endAtAi),
+          hasStartAt: !!(item.start_at_ai ?? (item as any).startAtAi),
         });
       }
       return false;
@@ -217,7 +242,9 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
       console.debug('[Deadline Check]', {
         noticeId: item.id,
         title: item.title?.substring(0, 30),
-        endDateValue,
+        deadlineDateValue,
+        hasEndAt: !!(item.end_at_ai ?? (item as any).endAtAi),
+        hasStartAt: !!(item.start_at_ai ?? (item as any).startAtAi),
         deadlineDate: deadlineDate.toISOString(),
         deadlineDateLocal: deadlineDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
         now: now.toISOString(),
@@ -231,7 +258,7 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
     }
     
     return isPassed;
-  }, [item.end_at_ai, item.id, item.title, parseDate]);
+  }, [hasSchedule, item.is_closed, item.end_at_ai, item.start_at_ai, item.id, item.title, parseDate]);
   
   const { data: colleges } = useColleges();
   const token = useAuthStore((s) => s.token);

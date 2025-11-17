@@ -212,9 +212,13 @@ export default function NoticesPage() {
   }, []);
 
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [corrections, setCorrections] = useState<Array<{keyword: string; score: number}>>([]);
+  const [relatedSearches, setRelatedSearches] = useState<Array<{keyword: string}>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const suggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 최근 검색어 로드
   useEffect(() => {
@@ -240,7 +244,20 @@ export default function NoticesPage() {
       localStorage.setItem("dice_recent_searches", JSON.stringify(updated));
       return updated;
     });
-  }, []);
+    
+    // 검색 로그 기록 (비동기)
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+    fetch(`${apiBase}/search/log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ query: query.trim() }),
+    }).catch(() => {
+      // 로그 기록 실패는 무시
+    });
+  }, [token]);
 
   // 검색어 하이라이트 함수
   const highlightText = useCallback((text: string, query: string) => {
@@ -262,26 +279,76 @@ export default function NoticesPage() {
     if (searchQuery.trim()) {
       saveSearchQuery(searchQuery.trim());
       setShowSuggestions(false);
+      
+      // 검색 로그 기록 (비동기, 실패해도 무시)
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+      fetch(`${apiBase}/search/log`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ 
+          query: searchQuery.trim(),
+          results_count: items.length // 검색 결과 개수 (나중에 업데이트 가능)
+        }),
+      }).catch(() => {
+        // 로그 기록 실패는 무시
+      });
     }
-  }, [searchQuery, saveSearchQuery]);
+  }, [searchQuery, saveSearchQuery, token, items.length]);
 
-  // 검색어 변경 시 제안 업데이트
+  // 검색어 제안 API 호출 (디바운싱)
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    // 이전 타이머 취소
+    if (suggestionTimeoutRef.current) {
+      clearTimeout(suggestionTimeoutRef.current);
+    }
+
+    if (!searchQuery.trim() || searchQuery.length < 1) {
       setSearchSuggestions([]);
+      setCorrections([]);
+      setRelatedSearches([]);
       return;
     }
 
-    // 간단한 제안 로직 (실제로는 API에서 가져올 수 있음)
-    const suggestions: string[] = [];
-    if (searchQuery.length > 1) {
-      // 최근 검색어에서 매칭되는 것 찾기
-      const matching = recentSearches.filter((q) =>
-        q.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      suggestions.push(...matching.slice(0, 3));
-    }
-    setSearchSuggestions(suggestions);
+    // 디바운싱: 300ms 후에 API 호출
+    suggestionTimeoutRef.current = setTimeout(async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+        const response = await fetch(
+          `${apiBase}/search/suggest?q=${encodeURIComponent(searchQuery.trim())}&limit=5`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCorrections(data.corrections || []);
+          setRelatedSearches(data.related || []);
+          
+          // 최근 검색어에서 매칭되는 것도 추가
+          const matching = recentSearches.filter((q) =>
+            q.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          setSearchSuggestions(matching.slice(0, 3));
+        }
+      } catch (error) {
+        console.error('Failed to fetch search suggestions:', error);
+        // 오류 발생 시 최근 검색어만 표시
+        const matching = recentSearches.filter((q) =>
+          q.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setSearchSuggestions(matching.slice(0, 3));
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 300);
+
+    return () => {
+      if (suggestionTimeoutRef.current) {
+        clearTimeout(suggestionTimeoutRef.current);
+      }
+    };
   }, [searchQuery, recentSearches]);
 
   const appliedFilterCount = useMemo(() => {
@@ -430,10 +497,66 @@ export default function NoticesPage() {
                 </form>
 
                 {/* 검색 제안 드롭다운 */}
-                {showSuggestions && (searchSuggestions.length > 0 || recentSearches.length > 0) && (
-                  <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+                {showSuggestions && (
+                  <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-96 overflow-y-auto">
+                    {/* 오타 교정 제안 */}
+                    {corrections.length > 0 && (
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="mb-1 text-xs font-semibold text-gray-500 flex items-center gap-1">
+                          <span>🔧</span>
+                          <span>오타 교정 제안</span>
+                        </div>
+                        {corrections.map((correction, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setSearchQuery(correction.keyword);
+                              saveSearchQuery(correction.keyword);
+                              setShowSuggestions(false);
+                              searchInputRef.current?.focus();
+                            }}
+                            className="w-full rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between"
+                          >
+                            <span className="font-medium">{correction.keyword}</span>
+                            <span className="text-xs text-gray-400">
+                              {Math.round(correction.score * 100)}% 일치
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 연관 검색어 */}
+                    {relatedSearches.length > 0 && (
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="mb-1 text-xs font-semibold text-gray-500 flex items-center gap-1">
+                          <span>🔗</span>
+                          <span>연관 검색어</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {relatedSearches.map((related, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                setSearchQuery(related.keyword);
+                                saveSearchQuery(related.keyword);
+                                setShowSuggestions(false);
+                                searchInputRef.current?.focus();
+                              }}
+                              className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 hover:bg-gray-200 transition-colors"
+                            >
+                              {related.keyword}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 최근 검색어 매칭 */}
                     {searchSuggestions.length > 0 && (
-                      <div className="p-2">
+                      <div className="p-2 border-b border-gray-100">
                         <div className="mb-1 text-xs font-semibold text-gray-500">검색 제안</div>
                         {searchSuggestions.map((suggestion, i) => (
                           <button
@@ -452,8 +575,10 @@ export default function NoticesPage() {
                         ))}
                       </div>
                     )}
+
+                    {/* 최근 검색어 (검색어가 없을 때만) */}
                     {!searchQuery && recentSearches.length > 0 && (
-                      <div className="border-t border-gray-200 p-2">
+                      <div className="p-2">
                         <div className="mb-1 text-xs font-semibold text-gray-500">최근 검색</div>
                         {recentSearches.map((search, i) => (
                           <button
@@ -484,6 +609,24 @@ export default function NoticesPage() {
                             </button>
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {/* 로딩 상태 */}
+                    {isLoadingSuggestions && searchQuery && (
+                      <div className="p-2 text-center text-xs text-gray-400">
+                        검색어 제안 불러오는 중...
+                      </div>
+                    )}
+
+                    {/* 제안이 없을 때 */}
+                    {!isLoadingSuggestions && 
+                     corrections.length === 0 && 
+                     relatedSearches.length === 0 && 
+                     searchSuggestions.length === 0 && 
+                     searchQuery && (
+                      <div className="p-2 text-center text-xs text-gray-400">
+                        검색어 제안이 없습니다
                       </div>
                     )}
                   </div>

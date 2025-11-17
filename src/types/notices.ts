@@ -62,6 +62,7 @@ export interface NoticeItem {
   qualification_ai: NoticeQualificationAI | null;
   start_at_ai?: string | null;   // 일정 시작일 (ISO)
   end_at_ai?: string | null;     // 일정 종료일 (ISO)
+  is_closed?: boolean;             // 마감 여부 (일정이 추출된 공지에 대하여만)
 
   // UI 표시 필드
   read: boolean;                 // 읽음 여부
