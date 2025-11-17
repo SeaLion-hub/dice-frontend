@@ -197,12 +197,9 @@ export default function ProfilePage() {
   React.useEffect(() => {
     if (profile === undefined) return;
 
-    // majors 정보가 아직 로딩 중이면 기존 값 유지
-    if (majorsLoading) return;
-
     const signature = profile
-      ? `${profile.user_id}-${profile.updated_at ?? "no-updated-at"}-${majorsData.length}`
-      : `empty-${majorsData.length}`;
+      ? `${profile.user_id}-${profile.updated_at ?? "no-updated-at"}-${majorsData.length}-${majorsLoading}`
+      : `empty-${majorsData.length}-${majorsLoading}`;
 
     const defaults: ProfileFormValues = {
       gender: "prefer_not_to_say",
@@ -220,7 +217,11 @@ export default function ProfilePage() {
     if (profile === null) {
       // 프로필이 없으면 기본값으로 초기화
       if (lastHydratedRef.current !== signature) {
-        form.reset(defaults);
+        form.reset(defaults, { 
+          keepDefaultValues: false,
+          keepErrors: false,
+          keepDirty: false,
+        });
         lastHydratedRef.current = signature;
       }
       return;
@@ -237,8 +238,9 @@ export default function ProfilePage() {
     const ageString = profile.age != null ? String(profile.age) : "";
 
     // college 필드: 프로필에 저장된 값이 있으면 사용, 없으면 전공으로부터 추론
+    // majors가 로드되지 않았어도 프로필에 저장된 college 값은 사용 가능
     let derivedCollege = profile.college ?? "";
-    if (!derivedCollege && profile.major) {
+    if (!derivedCollege && profile.major && !majorsLoading && majorsData.length > 0) {
       // 전공으로부터 단과대 찾기 (정확한 매칭)
       const collegeFromMajor = majorsData.find((item) => 
         item.majors.some(m => m.toLowerCase() === profile.major?.toLowerCase())
@@ -264,17 +266,55 @@ export default function ProfilePage() {
     // 시그니처가 변경되었을 때만 리셋 (프로필이 업데이트되었거나 처음 로드될 때)
     if (lastHydratedRef.current !== signature) {
       console.log('[Profile] Resetting form with profile values:', {
-        gender: expectedValues.gender,
-        college: expectedValues.college,
-        major: expectedValues.major,
-        military_service: expectedValues.military_service,
-        income_bracket: expectedValues.income_bracket,
-        gpa: expectedValues.gpa,
+        profileData: {
+          gender: profile.gender,
+          college: profile.college,
+          major: profile.major,
+          military_service: profile.military_service,
+          income_bracket: profile.income_bracket,
+          gpa: profile.gpa,
+        },
+        formValues: {
+          gender: expectedValues.gender,
+          college: expectedValues.college,
+          major: expectedValues.major,
+          military_service: expectedValues.military_service,
+          income_bracket: expectedValues.income_bracket,
+          gpa: expectedValues.gpa,
+        },
+        majorsLoading: majorsLoading,
+        majorsDataLength: majorsData.length,
       });
-      form.reset(expectedValues);
+      
+      // form.reset()을 강제로 호출하여 모든 필드를 업데이트
+      form.reset(expectedValues, { 
+        keepDefaultValues: false,
+        keepErrors: false,
+        keepDirty: false,
+        keepIsSubmitted: false,
+        keepTouched: false,
+        keepIsValid: false,
+        keepSubmitCount: false,
+      });
+      
       lastHydratedRef.current = signature;
     }
   }, [profile, majorsData, majorsLoading, form]);
+
+  // 프로필 데이터가 로드되었는지 확인하는 디버깅용 useEffect
+  React.useEffect(() => {
+    if (profile) {
+      console.log('[Profile] Profile data loaded:', {
+        gender: profile.gender,
+        college: profile.college,
+        major: profile.major,
+        military_service: profile.military_service,
+        income_bracket: profile.income_bracket,
+        gpa: profile.gpa,
+        keywords: profile.keywords,
+      });
+    }
+  }, [profile]);
 
   React.useEffect(() => {
     if (!token) {
