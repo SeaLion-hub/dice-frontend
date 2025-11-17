@@ -207,6 +207,7 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
 
     // end_at_ai 또는 endAtAi 필드 확인 (우선순위 1)
     let deadlineDateValue = item.end_at_ai ?? (item as any).endAtAi ?? null;
+    const hasStartAt = !!(item.start_at_ai ?? (item as any).startAtAi);
     
     // end_at_ai가 없고 start_at_ai만 있는 경우, start_at_ai를 기준으로 마감 여부 확인
     if (!deadlineDateValue) {
@@ -227,9 +228,18 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
           title: item.title?.substring(0, 30),
           deadlineDateValue,
           hasEndAt: !!(item.end_at_ai ?? (item as any).endAtAi),
-          hasStartAt: !!(item.start_at_ai ?? (item as any).startAtAi),
+          hasStartAt,
         });
       }
+      return false;
+    }
+    
+    // 04:23은 일회성 이벤트 표시용 (프론트엔드에서 시간 숨김용)
+    // end_at_ai가 04:23이고 start_at_ai가 없으면 → 일회성 이벤트 (마감 여부 판단 불가)
+    const isOneTimeEvent = deadlineDate.getHours() === 4 && deadlineDate.getMinutes() === 23 && 
+                           !!(item.end_at_ai ?? (item as any).endAtAi) && !hasStartAt;
+    if (isOneTimeEvent) {
+      // 일회성 이벤트는 마감 여부를 판단할 수 없음
       return false;
     }
     
