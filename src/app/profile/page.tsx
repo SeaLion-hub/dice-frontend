@@ -236,18 +236,25 @@ export default function ProfilePage() {
       : "1";
     const ageString = profile.age != null ? String(profile.age) : "";
 
-    const derivedCollege =
-      profile.college ??
-      majorsData.find((item) => item.majors.includes(profile.major ?? ""))?.college ??
-      "";
+    // college 필드: 프로필에 저장된 값이 있으면 사용, 없으면 전공으로부터 추론
+    let derivedCollege = profile.college ?? "";
+    if (!derivedCollege && profile.major) {
+      // 전공으로부터 단과대 찾기 (정확한 매칭)
+      const collegeFromMajor = majorsData.find((item) => 
+        item.majors.some(m => m.toLowerCase() === profile.major?.toLowerCase())
+      )?.college;
+      if (collegeFromMajor) {
+        derivedCollege = collegeFromMajor;
+      }
+    }
 
     const expectedValues: ProfileFormValues = {
-      gender: profile.gender ?? "prefer_not_to_say",
+      gender: (profile.gender ?? "prefer_not_to_say") as (typeof GENDER_OPTIONS)[number]["value"],
       age: ageString,
       grade: gradeString,
       college: derivedCollege,
       major: profile.major ?? "",
-      military_service: profile.military_service ?? "",
+      military_service: (profile.military_service ?? "") as (typeof MILITARY_OPTIONS)[number]["value"] | "",
       income_bracket: profile.income_bracket != null ? String(profile.income_bracket) : "",
       gpa: profile.gpa != null ? String(profile.gpa) : "",
       keywords: sanitizedKeywords,
@@ -256,6 +263,14 @@ export default function ProfilePage() {
 
     // 시그니처가 변경되었을 때만 리셋 (프로필이 업데이트되었거나 처음 로드될 때)
     if (lastHydratedRef.current !== signature) {
+      console.log('[Profile] Resetting form with profile values:', {
+        gender: expectedValues.gender,
+        college: expectedValues.college,
+        major: expectedValues.major,
+        military_service: expectedValues.military_service,
+        income_bracket: expectedValues.income_bracket,
+        gpa: expectedValues.gpa,
+      });
       form.reset(expectedValues);
       lastHydratedRef.current = signature;
     }
@@ -392,17 +407,22 @@ export default function ProfilePage() {
 
     const language_scores = extractLanguageScores(data.languageScores);
 
+    // 기존 프로필 값과 병합 (기존 값이 있으면 유지, 없으면 새 값 사용)
     const payload: Record<string, unknown> = {
       age: ageNum,
       major: data.major,
       college: data.college,
       grade: gradeNum,
       keywords: sanitizedKeywords,
-      gender: data.gender ?? "prefer_not_to_say",
+      gender: data.gender ?? (profile?.gender ?? "prefer_not_to_say"),
     };
 
+    // 선택 필드는 값이 있으면 업데이트, 없으면 기존 값 유지
     if (data.military_service) {
       payload.military_service = data.military_service;
+    } else if (profile?.military_service) {
+      // 기존 값이 있으면 유지
+      payload.military_service = profile.military_service;
     }
 
     if (data.income_bracket !== "") {
@@ -410,6 +430,9 @@ export default function ProfilePage() {
       if (!Number.isNaN(incomeNum)) {
         payload.income_bracket = incomeNum;
       }
+    } else if (profile?.income_bracket != null) {
+      // 기존 값이 있으면 유지
+      payload.income_bracket = profile.income_bracket;
     }
 
     if (data.gpa.trim() !== "") {
@@ -417,10 +440,17 @@ export default function ProfilePage() {
       if (!Number.isNaN(gpaNum)) {
         payload.gpa = Number(gpaNum.toFixed(2));
       }
+    } else if (profile?.gpa != null) {
+      // 기존 값이 있으면 유지
+      payload.gpa = profile.gpa;
     }
 
+    // language_scores는 객체이므로 기존 값과 병합
     if (Object.keys(language_scores).length > 0) {
       payload.language_scores = language_scores;
+    } else if (profile?.language_scores && Object.keys(profile.language_scores).length > 0) {
+      // 기존 값이 있으면 유지
+      payload.language_scores = profile.language_scores;
     }
 
     updateProfile.mutate(payload);
