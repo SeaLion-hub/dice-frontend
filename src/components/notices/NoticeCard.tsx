@@ -39,6 +39,200 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
       )
     );
   }, []);
+  
+  // 강화된 날짜 파싱 함수 (다양한 형식 지원)
+  const parseDate = React.useCallback((dateValue: any): Date | null => {
+    if (!dateValue) return null;
+    
+    // 이미 Date 객체인 경우
+    if (dateValue instanceof Date) {
+      return isNaN(dateValue.getTime()) ? null : dateValue;
+    }
+    
+    // 숫자 타임스탬프인 경우 (초 또는 밀리초)
+    if (typeof dateValue === 'number') {
+      // 밀리초인지 초인지 판단 (10자리면 초, 13자리면 밀리초)
+      // 10자리: 1234567890 (초)
+      // 13자리: 1234567890123 (밀리초)
+      const timestamp = dateValue > 10_000_000_000_000 ? dateValue : dateValue * 1000;
+      const date = new Date(timestamp);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    
+    // 문자열인 경우
+    if (typeof dateValue === 'string') {
+      const trimmed = dateValue.trim();
+      if (!trimmed) return null;
+      
+      // 1. ISO 형식 우선 처리 (PostgreSQL TIMESTAMPTZ가 이 형식으로 반환됨)
+      // 예: "2024-01-15T00:00:00Z", "2024-01-15T00:00:00+09:00", "2024-01-15T00:00:00.000Z"
+      // 다양한 ISO 형식 시도
+      const isoPatterns = [
+        trimmed, // 원본
+        trimmed.replace(/Z$/, '+00:00'), // Z를 +00:00로 변환
+        trimmed.replace(/Z$/, ''), // Z 제거
+        trimmed.replace(/(\+\d{2}):(\d{2})$/, '$1$2'), // +09:00을 +0900으로
+        trimmed.replace(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})/, '$1 $2'), // T를 공백으로
+      ];
+      
+      for (const pattern of isoPatterns) {
+        try {
+          const date = new Date(pattern);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            // 유효한 연도 범위 확인
+            if (year >= 1900 && year <= 2100) {
+              return date;
+            }
+          }
+        } catch (e) {
+          // 다음 패턴 시도
+          continue;
+        }
+      }
+      
+      // 2. YYYY-MM-DD 형식 (날짜만 있는 경우, 타임존 정보 포함 가능)
+      const ymdMatch = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:\s|$|T|Z|\+|-)/);
+      if (ymdMatch) {
+        const [, year, month, day] = ymdMatch;
+        const y = parseInt(year, 10);
+        const m = parseInt(month, 10) - 1; // 월은 0부터 시작
+        const d = parseInt(day, 10);
+        if (y >= 1900 && y <= 2100 && m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+          const date = new Date(y, m, d);
+          // 유효한 날짜인지 확인 (예: 2월 30일 같은 경우)
+          if (date.getFullYear() === y && date.getMonth() === m && date.getDate() === d) {
+            return date;
+          }
+        }
+      }
+      
+      // 3. YYYY.MM.DD 형식
+      const dotMatch = trimmed.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\s|$|T|Z|\+|-)/);
+      if (dotMatch) {
+        const [, year, month, day] = dotMatch;
+        const y = parseInt(year, 10);
+        const m = parseInt(month, 10) - 1;
+        const d = parseInt(day, 10);
+        if (y >= 1900 && y <= 2100 && m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+          const date = new Date(y, m, d);
+          if (date.getFullYear() === y && date.getMonth() === m && date.getDate() === d) {
+            return date;
+          }
+        }
+      }
+      
+      // 4. YYYY년 MM월 DD일 형식 (한국어 형식)
+      const koreanFullMatch = trimmed.match(/(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+      if (koreanFullMatch) {
+        const [, year, month, day] = koreanFullMatch;
+        const y = parseInt(year, 10);
+        const m = parseInt(month, 10) - 1;
+        const d = parseInt(day, 10);
+        if (y >= 1900 && y <= 2100 && m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+          const date = new Date(y, m, d);
+          if (date.getFullYear() === y && date.getMonth() === m && date.getDate() === d) {
+            return date;
+          }
+        }
+      }
+      
+      // 5. MM월 DD일 형식 (연도 없음, 현재 연도 또는 다음 연도 추론)
+      // "(금)" 같은 요일 표시도 처리
+      const koreanShortMatch = trimmed.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+      if (koreanShortMatch) {
+        const [, month, day] = koreanShortMatch;
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const m = parseInt(month, 10) - 1;
+        const d = parseInt(day, 10);
+        
+        if (m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+          // 현재 연도로 시도
+          let date = new Date(currentYear, m, d);
+          if (date.getFullYear() === currentYear && date.getMonth() === m && date.getDate() === d) {
+            // 날짜가 현재보다 이전이면 다음 연도일 가능성
+            // 특히 11월, 12월인 경우 다음 연도일 가능성이 높음
+            if (date < now) {
+              if (m >= 10) {
+                // 11월, 12월: 다음 연도
+                date = new Date(currentYear + 1, m, d);
+              } else if (m <= 1) {
+                // 1월, 2월: 현재가 11월, 12월이면 다음 연도
+                if (now.getMonth() >= 10) {
+                  date = new Date(currentYear + 1, m, d);
+                }
+              } else {
+                // 3월~10월: 현재보다 이전이면 다음 연도
+                date = new Date(currentYear + 1, m, d);
+              }
+            }
+            return date;
+          }
+        }
+      }
+      
+      // 6. 마지막 시도: Date 생성자에 직접 전달
+      const date = new Date(trimmed);
+      if (!isNaN(date.getTime())) {
+        // 유효한 날짜인지 추가 검증 (1970년 이전이나 2100년 이후는 의심스러움)
+        const year = date.getFullYear();
+        if (year >= 1900 && year <= 2100) {
+          return date;
+        }
+      }
+    }
+    
+    return null;
+  }, []);
+  
+  // 마감일이 지났는지 확인하는 함수 (단순화된 버전)
+  const isDeadlinePassed = React.useMemo(() => {
+    // end_at_ai 또는 endAtAi 필드 확인
+    const endDateValue = item.end_at_ai ?? (item as any).endAtAi ?? null;
+    if (!endDateValue) {
+      return false;
+    }
+    
+    // 날짜 파싱
+    const deadlineDate = parseDate(endDateValue);
+    if (!deadlineDate) {
+      // 개발 모드에서 파싱 실패 로깅
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Deadline Check] Failed to parse date', {
+          noticeId: item.id,
+          title: item.title?.substring(0, 30),
+          endDateValue,
+        });
+      }
+      return false;
+    }
+    
+    // 현재 시간과 비교: 마감일이 현재 시간보다 이전이면 마감됨
+    const now = new Date();
+    const isPassed = deadlineDate.getTime() < now.getTime();
+    
+    // 개발 모드에서 디버깅 정보 출력
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[Deadline Check]', {
+        noticeId: item.id,
+        title: item.title?.substring(0, 30),
+        endDateValue,
+        deadlineDate: deadlineDate.toISOString(),
+        deadlineDateLocal: deadlineDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        now: now.toISOString(),
+        nowLocal: now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        deadlineTime: deadlineDate.getTime(),
+        nowTime: now.getTime(),
+        isPassed,
+        timeDiff: now.getTime() - deadlineDate.getTime(),
+        timeDiffHours: Math.floor((now.getTime() - deadlineDate.getTime()) / (1000 * 60 * 60)),
+      });
+    }
+    
+    return isPassed;
+  }, [item.end_at_ai, item.id, item.title, parseDate]);
+  
   const { data: colleges } = useColleges();
   const token = useAuthStore((s) => s.token);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -122,7 +316,9 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
           'grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-xl',
           'bg-white/70 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800',
           'hover:bg-white dark:hover:bg-neutral-900 transition-colors',
-          'cursor-pointer'
+          'cursor-pointer',
+          // 마감일이 지난 경우 빨간색 테두리와 배경색 적용
+          isDeadlinePassed && 'border-red-400 dark:border-red-600 bg-red-50/50 dark:bg-red-950/30'
         )}
         role="button"
         onClick={() => onClick?.(item.id)}
@@ -132,6 +328,11 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
           {recommended && (
             <Badge className="shrink-0 bg-purple-100 text-[10px] font-semibold text-purple-700 border border-purple-200">
               추천
+            </Badge>
+          )}
+          {isDeadlinePassed && (
+            <Badge className="shrink-0 bg-red-100 text-[10px] font-semibold text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700">
+              마감됨
             </Badge>
           )}
           <div className="min-w-0 truncate text-sm font-medium">
@@ -179,7 +380,9 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
         'rounded-2xl p-4 border',
         'bg-white/80 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800',
         'hover:shadow-sm hover:bg-white dark:hover:bg-neutral-900 transition',
-        'cursor-pointer'
+        'cursor-pointer',
+        // 마감일이 지난 경우 빨간색 테두리와 배경색 적용
+        isDeadlinePassed && 'border-red-400 dark:border-red-600 bg-red-50/50 dark:bg-red-950/30'
       )}
       role="button"
       onClick={() => onClick?.(item.id)}
@@ -198,6 +401,11 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {isDeadlinePassed && (
+            <Badge className="shrink-0 bg-red-100 text-[10px] font-semibold text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700">
+              마감됨
+            </Badge>
+          )}
           {item.read && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
               읽음

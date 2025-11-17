@@ -74,6 +74,17 @@ export default function NoticesPage() {
     setFilters,
   } = useNoticePreferences();
 
+  // 로그인 후 첫 화면은 맞춤공지 탭으로 설정 (저장된 값이 없을 때만)
+  useEffect(() => {
+    if (isAuthed) {
+      const savedPrefs = localStorage.getItem("notice_prefs");
+      if (!savedPrefs) {
+        // 저장된 값이 없으면 맞춤공지 탭으로 설정
+        setTab("my");
+      }
+    }
+  }, [isAuthed, setTab]);
+
   useEffect(() => {
     if (!filterSheetOpen) return;
     setDraftFilters({
