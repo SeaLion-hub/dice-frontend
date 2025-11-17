@@ -58,6 +58,7 @@ export async function POST(
     }
 
     // 사용자 프로필을 불러와 자격 검증에 전달
+    // 프로필이 없어도 기본값으로 자격 검증 가능하도록 처리
     let verificationProfile: Record<string, unknown> | null = null;
     try {
       const profileRes = await api.get<UserProfileResponse>(`/auth/me/profile`, {
@@ -67,12 +68,21 @@ export async function POST(
     } catch (profileError: any) {
       const status = profileError?.response?.status;
       if (status === 404) {
-        return NextResponse.json(
-          { error: '프로필이 없습니다. 설정에서 정보를 입력한 뒤 다시 시도해 주세요.' },
-          { status: 422 }
-        );
-      }
-      if (status === 401) {
+        // 프로필이 없을 때는 기본값(빈 프로필)으로 자격 검증 진행
+        // 회원가입 직후에도 자격 검증이 작동하도록 함
+        verificationProfile = {
+          gender: null,
+          age: null,
+          major: null,
+          grade: null,
+          keywords: [],
+          military_service: null,
+          income_bracket: null,
+          gpa: null,
+          language_scores: {},
+        };
+        console.log('[DICE BFF] Profile not found, using default empty profile for eligibility check');
+      } else if (status === 401) {
         console.error('[DICE BFF ERROR] Authentication failed when loading profile', {
           status,
           hasAuthHeader: !!authToken,
@@ -86,19 +96,28 @@ export async function POST(
           },
           { status: 401 }
         );
+      } else {
+        console.error('[DICE BFF ERROR] Failed to load profile for eligibility', {
+          status,
+          data: JSON.stringify(profileError?.response?.data, null, 2),
+        });
+        throw profileError;
       }
-      console.error('[DICE BFF ERROR] Failed to load profile for eligibility', {
-        status,
-        data: JSON.stringify(profileError?.response?.data, null, 2),
-      });
-      throw profileError;
     }
 
+    // verificationProfile이 null인 경우 기본값 사용
     if (!verificationProfile) {
-      return NextResponse.json(
-        { error: '자격 검증을 위해 프로필 정보가 필요합니다.' },
-        { status: 422 }
-      );
+      verificationProfile = {
+        gender: null,
+        age: null,
+        major: null,
+        grade: null,
+        keywords: [],
+        military_service: null,
+        income_bracket: null,
+        gpa: null,
+        language_scores: {},
+      };
     }
 
     // 백엔드에도 POST로 위임
