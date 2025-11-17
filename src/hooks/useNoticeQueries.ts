@@ -110,14 +110,28 @@ export function useNoticeEligibility(id: string | null, enabled: boolean = true)
       if (!res.ok) {
         // 구조화된 에러 응답 파싱 시도
         let errorMessage = "자격 분석 결과를 불러오는데 실패했습니다.";
+        let errorDetail = "";
         try {
           const errorData = await res.json();
-          if (errorData?.error?.message) {
-            errorMessage = errorData.error.message;
+          if (errorData?.error) {
+            errorMessage = errorData.error;
+          } else if (errorData?.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData?.message) {
+            errorMessage = errorData.message;
+          }
+          if (errorData?.detail && typeof errorData.detail === "string") {
+            errorDetail = errorData.detail;
           }
         } catch {
           // JSON 파싱 실패 시 기본 메시지 사용
         }
+        
+        // 401 오류인 경우 특별 처리
+        if (res.status === 401) {
+          errorMessage = errorDetail || "로그인이 만료되었습니다. 다시 로그인해주세요.";
+        }
+        
         const error = new Error(errorMessage);
         (error as any).status = res.status;
         (error as any).response = { data: await res.json().catch(() => ({})) };

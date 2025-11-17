@@ -43,12 +43,18 @@ export async function POST(
       return NextResponse.json({ error: 'Notice id is required' }, { status: 400 });
     }
 
-    const authToken = request.headers.get('Authorization');
+    // Authorization 헤더 확인 및 정규화
+    let authToken = request.headers.get('Authorization');
     if (!authToken) {
       return NextResponse.json(
         { error: 'Unauthorized: missing Authorization header' },
         { status: 401 }
       );
+    }
+
+    // Bearer 접두사가 없으면 추가
+    if (!authToken.startsWith('Bearer ')) {
+      authToken = `Bearer ${authToken}`;
     }
 
     // 사용자 프로필을 불러와 자격 검증에 전달
@@ -67,8 +73,17 @@ export async function POST(
         );
       }
       if (status === 401) {
+        console.error('[DICE BFF ERROR] Authentication failed when loading profile', {
+          status,
+          hasAuthHeader: !!authToken,
+          authHeaderPrefix: authToken?.substring(0, 20),
+          errorDetail: profileError?.response?.data,
+        });
         return NextResponse.json(
-          { error: '로그인이 만료되었거나 사용자 정보를 찾을 수 없습니다.' },
+          { 
+            error: '로그인이 만료되었거나 사용자 정보를 찾을 수 없습니다.',
+            detail: profileError?.response?.data?.detail || '인증 토큰이 유효하지 않습니다.'
+          },
           { status: 401 }
         );
       }
