@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/profile/FieldError";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 /* =========================================
  * 환경 설정
@@ -65,6 +66,7 @@ export default function RegisterPage() {
 
 function RegisterInner() {
   const router = useRouter();
+  const { setToken } = useAuthStore(); // 토큰 저장을 위한 store 액션
   // 단계: 1~4
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
@@ -154,6 +156,9 @@ function RegisterInner() {
       }
       const token = loginData.access_token;
       if (!token) throw new Error("서버가 access_token을 보내지 않았습니다.");
+
+      // 로그인 성공 직후 토큰 저장 (프로필 저장 실패해도 자격 검증 기능 사용 가능)
+      setToken(token);
 
       // 2) language_scores 숫자만 추출
       const language_scores: Record<string, number> = {};
@@ -266,8 +271,7 @@ function RegisterInner() {
         throw new Error(detailMsg);
       }
 
-      // 성공
-      localStorage.setItem("DICE_TOKEN", token);
+      // 프로필 저장 성공 - 공지사항 페이지로 이동
       router.replace("/notices");
     } catch (err: any) {
       profileForm.setError("keywords", {
