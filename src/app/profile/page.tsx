@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LogOut, Save, User, Bell } from "lucide-react";
 
@@ -265,28 +266,6 @@ export default function ProfilePage() {
 
     // 시그니처가 변경되었을 때만 리셋 (프로필이 업데이트되었거나 처음 로드될 때)
     if (lastHydratedRef.current !== signature) {
-      console.log('[Profile] Resetting form with profile values:', {
-        profileData: {
-          gender: profile.gender,
-          college: profile.college,
-          major: profile.major,
-          military_service: profile.military_service,
-          income_bracket: profile.income_bracket,
-          gpa: profile.gpa,
-        },
-        formValues: {
-          gender: expectedValues.gender,
-          college: expectedValues.college,
-          major: expectedValues.major,
-          military_service: expectedValues.military_service,
-          income_bracket: expectedValues.income_bracket,
-          gpa: expectedValues.gpa,
-        },
-        majorsLoading: majorsLoading,
-        majorsDataLength: majorsData.length,
-      });
-      
-      // form.reset()을 강제로 호출하여 모든 필드를 업데이트
       form.reset(expectedValues, { 
         keepDefaultValues: false,
         keepErrors: false,
@@ -300,21 +279,6 @@ export default function ProfilePage() {
       lastHydratedRef.current = signature;
     }
   }, [profile, majorsData, majorsLoading, form]);
-
-  // 프로필 데이터가 로드되었는지 확인하는 디버깅용 useEffect
-  React.useEffect(() => {
-    if (profile) {
-      console.log('[Profile] Profile data loaded:', {
-        gender: profile.gender,
-        college: profile.college,
-        major: profile.major,
-        military_service: profile.military_service,
-        income_bracket: profile.income_bracket,
-        gpa: profile.gpa,
-        keywords: profile.keywords,
-      });
-    }
-  }, [profile]);
 
   React.useEffect(() => {
     if (!token) {
@@ -361,34 +325,12 @@ export default function ProfilePage() {
       return res.json();
     },
     onSuccess: () => {
-      // 프로필 업데이트 시 관련된 모든 쿼리 무효화
       invalidateUserProfile();
       invalidateAllNotices();
-      // 성공 메시지 표시 (alert 대신 토스트 사용 권장)
-      const successMessage = "프로필이 업데이트되었습니다.";
-      // 간단한 알림 (나중에 토스트 라이브러리로 교체 가능)
-      if (typeof window !== "undefined") {
-        const notification = document.createElement("div");
-        notification.className = "fixed top-4 right-4 z-50 rounded-lg bg-green-500 px-4 py-2 text-white shadow-lg";
-        notification.textContent = successMessage;
-        document.body.appendChild(notification);
-        setTimeout(() => {
-          notification.remove();
-        }, 3000);
-      }
+      toast.success("프로필이 업데이트되었습니다.");
     },
     onError: (error: Error) => {
-      const errorMessage = getErrorMessage(error) || "프로필 업데이트에 실패했습니다.";
-      // 에러 메시지 표시
-      if (typeof window !== "undefined") {
-        const notification = document.createElement("div");
-        notification.className = "fixed top-4 right-4 z-50 rounded-lg bg-red-500 px-4 py-2 text-white shadow-lg";
-        notification.textContent = errorMessage;
-        document.body.appendChild(notification);
-        setTimeout(() => {
-          notification.remove();
-        }, 5000);
-      }
+      toast.error(getErrorMessage(error) || "프로필 업데이트에 실패했습니다.");
     },
   });
 
@@ -671,7 +613,7 @@ export default function ProfilePage() {
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
                 <div className="font-semibold mb-1">
                   {completeness.percentage >= 80
-                    ? "거의 완성되었어요! 🎉"
+                    ? "거의 완성되었어요"
                     : completeness.percentage >= 50
                     ? "조금만 더 채워주세요"
                     : "프로필을 더 채워주세요"}
@@ -686,7 +628,7 @@ export default function ProfilePage() {
 
             {completeness.percentage === 100 && (
               <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-                <div className="font-semibold">프로필이 완성되었어요! 🎉</div>
+                <div className="font-semibold">프로필이 완성되었어요</div>
                 <p className="text-xs text-green-700 mt-1">
                   완성된 프로필로 더 정확한 맞춤 추천을 받고 계세요.
                 </p>
@@ -757,7 +699,6 @@ export default function ProfilePage() {
   );
 }
 
-// 알림 설정 컴포넌트
 function NotificationSettingsSection({ token }: { token: string | null }) {
   const [enabled, setEnabled] = React.useState(true);
   const [deadlineDays, setDeadlineDays] = React.useState<number[]>([3, 7]);
@@ -825,28 +766,13 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
       });
 
       if (res.ok) {
-        // 성공 메시지 표시
-        const notification = document.createElement("div");
-        notification.className =
-          "fixed top-4 right-4 z-50 rounded-lg bg-green-500 px-4 py-2 text-white shadow-lg";
-        notification.textContent = "알림 설정이 저장되었습니다.";
-        document.body.appendChild(notification);
-        setTimeout(() => {
-          notification.remove();
-        }, 3000);
+        toast.success("알림 설정이 저장되었습니다.");
       } else {
         throw new Error("Failed to save settings");
       }
     } catch (error) {
       console.error("Failed to save notification settings:", error);
-      const notification = document.createElement("div");
-      notification.className =
-        "fixed top-4 right-4 z-50 rounded-lg bg-red-500 px-4 py-2 text-white shadow-lg";
-      notification.textContent = "알림 설정 저장에 실패했습니다.";
-      document.body.appendChild(notification);
-      setTimeout(() => {
-        notification.remove();
-      }, 5000);
+      toast.error("알림 설정 저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
     }

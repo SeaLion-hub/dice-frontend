@@ -1,5 +1,5 @@
-// src/hooks/useNoticePreferences.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LS_KEYS } from "@/lib/constants";
 
 export type NoticeSort = "recent" | "oldest";
 export type DateRange = "" | "1d" | "1w" | "1m" | "all";
@@ -30,7 +30,7 @@ type NoticePreferencesActions = {
   setFilters: (partial: Partial<NoticeFilters> | ((prev: NoticeFilters) => Partial<NoticeFilters>)) => void;
 };
 
-const LS_KEY = "notice_prefs";
+const LS_KEY = LS_KEYS.NOTICE_PREFS;
 
 const defaultState: NoticePreferencesState = {
   tab: "all",

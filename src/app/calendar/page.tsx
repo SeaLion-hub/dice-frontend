@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCalendarStore } from "@/stores/useCalendarStore";
+import { toast } from "sonner";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -125,7 +126,7 @@ export default function CalendarPage() {
   // 새 일정 추가
   const handleAddEvent = () => {
     if (!selectedDate || !newEventTitle.trim()) {
-      alert("제목을 입력해주세요.");
+      toast.error("제목을 입력해주세요.");
       return;
     }
 
@@ -147,7 +148,7 @@ export default function CalendarPage() {
     });
 
     if (result.status === "duplicate") {
-      alert("이미 등록된 일정입니다.");
+      toast.error("이미 등록된 일정입니다.");
       return;
     }
 

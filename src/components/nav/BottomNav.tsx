@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Home, Settings } from "lucide-react";
+import { Calendar, Home, User } from "lucide-react";
 
 export default function BottomNav() {
   const path = usePathname();
@@ -16,24 +16,24 @@ export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto grid max-w-screen-md grid-cols-3 py-2">
-        <Link href="/notices" className="flex flex-col items-center">
+        <Link href="/notices" className="flex flex-col items-center" aria-label="홈">
           <div className={cls(isActive("/notices"))}>
             <Home size={20} />
             홈
           </div>
         </Link>
 
-        <Link href="/calendar" className="flex flex-col items-center">
+        <Link href="/calendar" className="flex flex-col items-center" aria-label="캘린더">
           <div className={cls(isActive("/calendar"))}>
             <Calendar size={20} />
             캘린더
           </div>
         </Link>
 
-        <Link href="/profile" className="flex flex-col items-center">
+        <Link href="/profile" className="flex flex-col items-center" aria-label="프로필">
           <div className={cls(isActive("/profile"))}>
-            <Settings size={20} />
-            설정
+            <User size={20} />
+            프로필
           </div>
         </Link>
       </div>

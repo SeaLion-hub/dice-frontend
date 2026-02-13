@@ -1,10 +1,10 @@
-// src/app/notices/page.tsx
 "use client";
 
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
+import { LS_KEYS, API_BASE } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import classNames from "classnames";
-import { SlidersHorizontal, LayoutGrid, List } from "lucide-react";
+import { SlidersHorizontal, LayoutGrid, List, Search as SearchIcon } from "lucide-react";
 import type { Notice } from "@/types/notices";
 import { useAuthStore } from "@/stores/useAuthStore";
 import NoticeCard from "@/components/notices/NoticeCard";
@@ -45,14 +45,14 @@ export default function NoticesPage() {
 
   // 뷰 모드 저장 (localStorage)
   useEffect(() => {
-    const saved = localStorage.getItem("dice_notices_view_mode");
+    const saved = localStorage.getItem(LS_KEYS.NOTICES_VIEW_MODE);
     if (saved === "card" || saved === "list") {
       setViewMode(saved);
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("dice_notices_view_mode", viewMode);
+    localStorage.setItem(LS_KEYS.NOTICES_VIEW_MODE, viewMode);
   }, [viewMode]);
 
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -77,7 +77,7 @@ export default function NoticesPage() {
   // 로그인 후 첫 화면은 맞춤공지 탭으로 설정 (저장된 값이 없을 때만)
   useEffect(() => {
     if (isAuthed) {
-      const savedPrefs = localStorage.getItem("notice_prefs");
+      const savedPrefs = localStorage.getItem(LS_KEYS.NOTICE_PREFS);
       if (!savedPrefs) {
         // 저장된 값이 없으면 맞춤공지 탭으로 설정
         setTab("my");
@@ -222,7 +222,7 @@ export default function NoticesPage() {
 
   // 최근 검색어 로드
   useEffect(() => {
-    const saved = localStorage.getItem("dice_recent_searches");
+    const saved = localStorage.getItem(LS_KEYS.RECENT_SEARCHES);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -241,12 +241,12 @@ export default function NoticesPage() {
     setRecentSearches((prev) => {
       const filtered = prev.filter((q) => q !== query);
       const updated = [query, ...filtered].slice(0, 5);
-      localStorage.setItem("dice_recent_searches", JSON.stringify(updated));
+      localStorage.setItem(LS_KEYS.RECENT_SEARCHES, JSON.stringify(updated));
       return updated;
     });
     
     // 검색 로그 기록 (비동기)
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+    const apiBase = API_BASE;
     fetch(`${apiBase}/search/log`, {
       method: 'POST',
       headers: {
@@ -265,7 +265,7 @@ export default function NoticesPage() {
     const parts = text.split(new RegExp(`(${query})`, "gi"));
     return parts.map((part, i) =>
       part.toLowerCase() === query.toLowerCase() ? (
-        <mark key={i} className="bg-yellow-200 text-yellow-900">
+        <mark key={i} className="bg-primary/15 text-foreground rounded-sm px-0.5">
           {part}
         </mark>
       ) : (
@@ -281,7 +281,7 @@ export default function NoticesPage() {
       setShowSuggestions(false);
       
       // 검색 로그 기록 (비동기, 실패해도 무시)
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+      const apiBase = API_BASE;
       fetch(`${apiBase}/search/log`, {
         method: 'POST',
         headers: {
@@ -316,7 +316,7 @@ export default function NoticesPage() {
     suggestionTimeoutRef.current = setTimeout(async () => {
       setIsLoadingSuggestions(true);
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+        const apiBase = API_BASE;
         const response = await fetch(
           `${apiBase}/search/suggest?q=${encodeURIComponent(searchQuery.trim())}&limit=5`
         );
@@ -376,7 +376,7 @@ export default function NoticesPage() {
   useEffect(() => {
     async function fetchColleges() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/colleges`);
+        const res = await fetch(`${API_BASE}/colleges`);
         const data = await res.json();
         setCollegeOptions(data.items || []);
       } catch (e) {
@@ -454,7 +454,7 @@ export default function NoticesPage() {
                   onSubmit={handleSearchSubmit}
                   className="flex w-full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm"
                 >
-                  <span className="mr-2 text-gray-400">🔍</span>
+                  <SearchIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                   <input
                     ref={searchInputRef}
                     value={searchQuery}
@@ -502,9 +502,8 @@ export default function NoticesPage() {
                     {/* 오타 교정 제안 */}
                     {corrections.length > 0 && (
                       <div className="p-2 border-b border-gray-100">
-                        <div className="mb-1 text-xs font-semibold text-gray-500 flex items-center gap-1">
-                          <span>🔧</span>
-                          <span>오타 교정 제안</span>
+                        <div className="mb-1 text-xs font-semibold text-gray-500">
+                          오타 교정 제안
                         </div>
                         {corrections.map((correction, i) => (
                           <button
@@ -530,9 +529,8 @@ export default function NoticesPage() {
                     {/* 연관 검색어 */}
                     {relatedSearches.length > 0 && (
                       <div className="p-2 border-b border-gray-100">
-                        <div className="mb-1 text-xs font-semibold text-gray-500 flex items-center gap-1">
-                          <span>🔗</span>
-                          <span>연관 검색어</span>
+                        <div className="mb-1 text-xs font-semibold text-gray-500">
+                          연관 검색어
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {relatedSearches.map((related, i) => (
@@ -581,33 +579,36 @@ export default function NoticesPage() {
                       <div className="p-2">
                         <div className="mb-1 text-xs font-semibold text-gray-500">최근 검색</div>
                         {recentSearches.map((search, i) => (
-                          <button
+                          <div
                             key={i}
-                            type="button"
-                            onClick={() => {
-                              setSearchQuery(search);
-                              setShowSuggestions(false);
-                              searchInputRef.current?.focus();
-                            }}
-                            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+                            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 group"
                           >
-                            <span>{search}</span>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={() => {
+                                setSearchQuery(search);
+                                setShowSuggestions(false);
+                                searchInputRef.current?.focus();
+                              }}
+                              className="flex-1 text-left min-w-0 truncate"
+                            >
+                              {search}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
                                 setRecentSearches((prev) => {
                                   const updated = prev.filter((q) => q !== search);
-                                  localStorage.setItem("dice_recent_searches", JSON.stringify(updated));
+                                  localStorage.setItem(LS_KEYS.RECENT_SEARCHES, JSON.stringify(updated));
                                   return updated;
                                 });
                               }}
-                              className="text-gray-400 hover:text-gray-600"
-                              aria-label="검색어 삭제"
+                              className="shrink-0 ml-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                              aria-label={`${search} 검색어 삭제`}
                             >
                               <X className="h-3 w-3" />
                             </button>
-                          </button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -648,9 +649,9 @@ export default function NoticesPage() {
                 <SheetContent side="right" className="w-full sm:max-w-md">
                   <SheetHeader>
                     <SheetTitle>필터 설정</SheetTitle>
-                    <SheetDescription>
-                      원하는 조건을 선택하고 적용을 눌러주세요. 적용 시 목록이 즉시 업데이트됩니다.
-                    </SheetDescription>
+                  <SheetDescription>
+                    조건을 선택한 뒤 적용하면 목록이 바로 갱신됩니다.
+                  </SheetDescription>
                   </SheetHeader>
 
                   <div className="mt-6 space-y-4">
@@ -816,7 +817,7 @@ export default function NoticesPage() {
 
             {!isLoading && !isError && items.length === 0 && (
               <div className="p-6">
-                <EmptyState message="조건에 맞는 공지가 없어요. 필터를 초기화하고 다시 확인해보세요. 🤔" />
+                <EmptyState message="조건에 맞는 공지가 없어요. 필터를 바꿔보세요." />
               </div>
             )}
 
@@ -850,7 +851,7 @@ export default function NoticesPage() {
 
           {!isLoading && !isError && items.length === 0 && (
             <div className="col-span-full p-6">
-              <EmptyState message="조건에 맞는 공지가 없어요. 필터를 초기화하고 다시 확인해보세요. 🤔" />
+              <EmptyState message="조건에 맞는 공지가 없어요. 필터를 바꿔보세요." />
             </div>
           )}
 

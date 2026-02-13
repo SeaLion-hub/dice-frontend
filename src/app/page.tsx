@@ -12,9 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Bell, Bot, Search } from "lucide-react";
-import FuzzyText from "@/components/FuzzyText"; // ← 실제 위치에 맞춰주세요
+import FuzzyText from "@/components/FuzzyText";
 
-// ✅ 애니메이션 Variants를 이 파일 안에서 직접 정의
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 50 },
   visible: {
@@ -50,34 +49,30 @@ export default function LandingPage() {
           <div className="text-primary-dark">
             <FuzzyText
               fontSize="clamp(2rem, 8vw, 6rem)"
-              baseIntensity={0.16}
-              hoverIntensity={1.0}
+              baseIntensity={0.08}
+              hoverIntensity={0.6}
             >
               DICE
             </FuzzyText>
           </div>
 
-          {/* 핵심 가치 제안 */}
           <h1 className="font-extrabold tracking-[-0.04em] text-primary-dark text-balance leading-tight text-5xl md:text-6xl">
-            놓치지 마세요,
+            대학 공지, 한 곳에
             <br className="sm:hidden" />
-            중요한 기회를
+            맞춤으로
           </h1>
 
-          {/* 설명 */}
           <p className="text-base leading-relaxed text-muted-foreground text-balance max-w-2xl">
-            대학의 모든 공지사항을 한 곳에서 확인하고, AI가 맞춤형으로
-            추천해드립니다. 장학금, 인턴십, 공모전 등 중요한 기회를 절대
-            놓치지 마세요.
+            장학금, 인턴십, 공모전. 학과·학년을 반영한 AI 추천과
+            마감 알림까지.
           </p>
 
-          {/* CTA */}
           <Button
             size="lg"
             className="shadow-lg shadow-primary/30"
             asChild
           >
-            <Link href="/login">지금 기회 확인하기</Link>
+            <Link href="/login">시작하기</Link>
           </Button>
         </div>
       </section>
@@ -141,8 +136,7 @@ export default function LandingPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  중요한 마감일을 놓치지 않도록 푸시 알림과 개인 캘린더 연동까지
-                  지원합니다.
+                  마감 임박 푸시 알림과 캘린더 연동.
                 </p>
               </CardContent>
             </Card>
@@ -161,11 +155,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl flex flex-col items-center text-center gap-8">
           <div className="max-w-2xl">
             <h2 className="text-2xl font-bold tracking-[-0.03em] text-primary-dark">
-              실제로 이렇게 보여요 👀
+              이런 화면으로 보여요
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              맞춤 추천, 마감 임박 알림, 학과별 공지 통합까지.
-              DICE가 당신 대신 모아드립니다.
+              맞춤 추천, 마감 알림, 학과별 공지 통합.
             </p>
           </div>
 
@@ -289,8 +282,6 @@ export default function LandingPage() {
         </div>
       </motion.section>
 
-      {/* ====================== SOCIAL PROOF ====================== */
-      /* tip: bg + border-top 유지 */}
       <motion.section
         variants={fadeInUp}
         initial="hidden"
@@ -301,38 +292,17 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl flex flex-col items-center text-center gap-10">
           <div className="max-w-2xl">
             <h2 className="text-2xl font-bold tracking-[-0.03em] text-primary-dark">
-              학생들이 이미 쓰고 있어요 💬
+              사용자 후기
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              "나만 손해보는 거 아냐?"라는 불안을 줄여주고
-              실제 가치를 증명해주는 구간입니다.
+              실제 사용자 후기 준비 중입니다.
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 w-full">
-            <Card className="bg-background/80 border-primary/20 shadow-lg">
-              <CardContent className="p-6 text-left space-y-3">
-                <p className="text-[0.9rem] leading-relaxed text-foreground font-medium">
-                  "DICE 덕분에 놓칠 뻔했던 장학금 신청했어요. 진짜로 등록금
-                  줄었습니다."
-                </p>
-                <p className="text-[0.8rem] text-muted-foreground">
-                  전자공학부 23학번 · 김○○
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-background/80 border-primary/20 shadow-lg">
-              <CardContent className="p-6 text-left space-y-3">
-                <p className="text-[0.9rem] leading-relaxed text-foreground font-medium">
-                  "공지 보려고 학교 사이트 5군데 돌아다닐 필요가 없어요.
-                  딱 중요한 것만 한 번에."
-                </p>
-                <p className="text-[0.8rem] text-muted-foreground">
-                  컴퓨터과학과 21학번 · 이○○
-                </p>
-              </CardContent>
-            </Card>
+          <div className="w-full max-w-md rounded-xl border border-dashed border-border bg-muted/30 px-8 py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              베타 테스트 후기와 수집된 피드백을 곧 공유할 예정이에요.
+            </p>
           </div>
         </div>
       </motion.section>
@@ -346,25 +316,18 @@ export default function LandingPage() {
               DICE
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              대학생이 절대 놓치면 안 되는 기회들을 한 곳에 모으는
-              공지 어그리게이터 &amp; 알림 비서.
+              대학 공지를 한 곳에. 맞춤 추천과 알림까지.
             </p>
           </div>
 
           {/* 링크들 */}
           <div className="text-sm text-muted-foreground flex flex-col gap-2">
-            <Link
-              href="/privacy"
-              className="hover:text-foreground transition-colors"
-            >
-              개인정보처리방침
-            </Link>
-            <Link
-              href="/terms"
-              className="hover:text-foreground transition-colors"
-            >
-              이용약관
-            </Link>
+            <span className="text-muted-foreground/70 cursor-default">
+              개인정보처리방침 (준비 중)
+            </span>
+            <span className="text-muted-foreground/70 cursor-default">
+              이용약관 (준비 중)
+            </span>
             <a
               href="mailto:hello@dice.app"
               className="hover:text-foreground transition-colors"

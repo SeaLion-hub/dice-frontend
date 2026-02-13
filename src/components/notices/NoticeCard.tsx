@@ -31,7 +31,7 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
     const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi"));
     return parts.map((part, i) =>
       part.toLowerCase() === query.toLowerCase() ? (
-        <mark key={i} className="bg-yellow-200 text-yellow-900 px-0.5 rounded">
+        <mark key={i} className="bg-primary/15 text-foreground px-0.5 rounded">
           {part}
         </mark>
       ) : (

@@ -134,8 +134,7 @@ export default function NoticesPage() {
             아직 맞춤 공지가 없어요.
           </div>
           <div className="mt-2 text-gray-600">
-            프로필 정보를 더 채우면
-            더 정확한 맞춤 공지를 받을 수 있어요. ✔️
+            프로필 정보를 더 채우면 더 정확한 맞춤 공지를 받을 수 있어요.
           </div>
           <Link
             href="/profile"
@@ -154,7 +153,7 @@ export default function NoticesPage() {
           조건에 맞는 공지가 없어요.
         </div>
         <div className="mt-2 text-gray-600">
-          필터를 초기화하고 다시 확인해보세요. 🤔
+          필터를 바꿔보세요.
         </div>
 
         <button
