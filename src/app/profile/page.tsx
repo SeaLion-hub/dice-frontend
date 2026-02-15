@@ -160,7 +160,41 @@ export default function ProfilePage() {
         (error as any).status = res.status;
         throw error;
       }
-      return res.json();
+      const data = await res.json();
+      // 프로필 수정 디버깅: API 응답 확인용 콘솔 로그
+      console.log("[프로필 API 응답]", {
+        gender: data?.gender,
+        grade: data?.grade,
+        college: data?.college,
+        major: data?.major,
+        age: data?.age,
+        gpa: data?.gpa,
+        military_service: data?.military_service,
+        income_bracket: data?.income_bracket,
+      });
+      // #region agent log
+      fetch("http://127.0.0.1:7242/ingest/7ea9b1b-d104-4b2e-9787-6cd380f676d6", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hypothesisId: "A",
+          location: "profile/page.tsx:profile-queryFn",
+          message: "Profile API response fields",
+          data: {
+            hasGender: data?.gender != null,
+            hasGrade: data?.grade != null,
+            hasCollege: data?.college != null,
+            hasMajor: data?.major != null,
+            hasAge: data?.age != null,
+            hasGpa: data?.gpa != null,
+            gradeType: typeof data?.grade,
+            genderVal: data?.gender == null ? null : "present",
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return data;
     },
     enabled: !!token,
     staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
@@ -191,6 +225,8 @@ export default function ProfilePage() {
   const isFormDirty = form.formState.isDirty;
 
   const lastHydratedRef = React.useRef<string | null>(null);
+  // 프로필로 폼을 채운 직후 Select가 올바른 value를 표시하도록 필드 섹션만 다시 마운트
+  const [formFieldsKey, setFormFieldsKey] = React.useState(0);
 
   React.useEffect(() => {
     lastHydratedRef.current = null;
@@ -198,6 +234,19 @@ export default function ProfilePage() {
 
   // useLayoutEffect: 폼이 화면에 그려지기 전에 프로필 값으로 채워서, 빈 칸이 잠깐 보이는 현상 방지
   React.useLayoutEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/7ea9b1b-d104-4b2e-9787-6cd380f676d6", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hypothesisId: "E",
+        location: "profile/page.tsx:useLayoutEffect-entry",
+        message: "Hydration effect run",
+        data: { profileStatus: profile === undefined ? "undefined" : profile === null ? "null" : "data", majorsLength: majorsData?.length ?? 0, majorsLoading },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (profile === undefined) return;
 
     const signature = profile
@@ -233,15 +282,20 @@ export default function ProfilePage() {
     // 프로필이 있으면 프로필 값으로 폼 초기화 (회원가입 시 설정한 성별/나이/전공 등 반영)
     const sanitizedKeywords = sanitizeKeywords(profile.keywords || []);
     const languageScoresFromProfile = buildLanguageScoresFromProfile(profile.language_scores);
-    const gradeString = ALLOWED_GRADES.includes(
-      String(profile.grade ?? "1") as (typeof ALLOWED_GRADES)[number]
-    )
-      ? (String(profile.grade) as (typeof ALLOWED_GRADES)[number])
+    const gradeRaw = profile.grade != null && profile.grade !== "" ? String(profile.grade) : "1";
+    const gradeString = ALLOWED_GRADES.includes(gradeRaw as (typeof ALLOWED_GRADES)[number])
+      ? (gradeRaw as (typeof ALLOWED_GRADES)[number])
       : "1";
     const ageString = profile.age != null ? String(profile.age) : "";
 
+    // 성별: 빈 문자열/null이면 기본값 사용 (Select에 value="" 옵션이 없어 placeholder가 나오지 않도록)
+    const genderRaw = profile.gender != null ? String(profile.gender).trim() : "";
+    const genderValue = genderRaw && GENDER_OPTIONS.some((o) => o.value === genderRaw)
+      ? (genderRaw as (typeof GENDER_OPTIONS)[number]["value"])
+      : "prefer_not_to_say";
+
     // college 필드: 프로필에 저장된 값이 있으면 사용, 없으면 전공으로부터 추론
-    let derivedCollege = profile.college ?? "";
+    let derivedCollege = (profile.college != null && String(profile.college).trim()) ? String(profile.college).trim() : "";
     if (!derivedCollege && profile.major && !majorsLoading && majorsData.length > 0) {
       const collegeFromMajor = majorsData.find((item) =>
         item.majors.some((m) => m.toLowerCase() === profile.major?.toLowerCase())
@@ -249,18 +303,55 @@ export default function ProfilePage() {
       if (collegeFromMajor) derivedCollege = collegeFromMajor;
     }
 
+    const majorValue = (profile.major != null && String(profile.major).trim()) ? String(profile.major).trim() : "";
+
     const expectedValues: ProfileFormValues = {
-      gender: (profile.gender ?? "prefer_not_to_say") as (typeof GENDER_OPTIONS)[number]["value"],
+      gender: genderValue,
       age: ageString,
       grade: gradeString,
       college: derivedCollege,
-      major: profile.major ?? "",
+      major: majorValue,
       military_service: (profile.military_service ?? "") as (typeof MILITARY_OPTIONS)[number]["value"] | "",
       income_bracket: profile.income_bracket != null ? String(profile.income_bracket) : "",
       gpa: profile.gpa != null ? String(profile.gpa) : "",
       keywords: sanitizedKeywords,
       languageScores: languageScoresFromProfile,
     };
+
+    // 프로필 수정 디버깅: 폼에 넣을 값 확인용 콘솔 로그
+    console.log("[프로필 폼 초기값]", {
+      expectedGender: expectedValues.gender,
+      expectedGrade: expectedValues.grade,
+      expectedCollege: expectedValues.college,
+      expectedMajor: expectedValues.major,
+      expectedMilitary: expectedValues.military_service,
+      expectedIncome: expectedValues.income_bracket,
+      signature,
+      majorsLength: majorsData.length,
+      majorsLoading,
+    });
+
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/7ea9b1b-d104-4b2e-9787-6cd380f676d6", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hypothesisId: "B",
+        location: "profile/page.tsx:useLayoutEffect-expectedValues",
+        message: "Computed expectedValues before reset",
+        data: {
+          expectedGender: expectedValues.gender,
+          expectedGrade: expectedValues.grade,
+          expectedCollege: expectedValues.college ? "set" : "empty",
+          expectedMajor: expectedValues.major ? "set" : "empty",
+          signature,
+          majorsLength: majorsData.length,
+          majorsLoading,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     const alreadyHydratedForThisProfile =
       lastHydratedRef.current !== null && lastHydratedRef.current.startsWith(profile.user_id);
@@ -275,6 +366,36 @@ export default function ProfilePage() {
         keepSubmitCount: false,
       });
       lastHydratedRef.current = signature;
+      const after = form.getValues();
+      console.log("[프로필 폼 reset 직후]", {
+        formGender: after.gender,
+        formGrade: after.grade,
+        formCollege: after.college,
+        formMajor: after.major,
+        formMilitary: after.military_service,
+        formIncome: after.income_bracket,
+      });
+      // reset 후 Select가 올바른 value를 표시하도록 필드 섹션 재마운트
+      setFormFieldsKey((k) => k + 1);
+      // #region agent log
+      fetch("http://127.0.0.1:7242/ingest/7ea9b1b-d104-4b2e-9787-6cd380f676d6", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hypothesisId: "C",
+          location: "profile/page.tsx:useLayoutEffect-afterReset",
+          message: "Form values right after reset",
+          data: {
+            formGender: after.gender,
+            formGrade: after.grade,
+            formCollege: after.college ? "set" : "empty",
+            formMajor: after.major ? "set" : "empty",
+            didReset: true,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     }
   }, [profile, majorsData, majorsLoading, form]);
 
@@ -657,8 +778,8 @@ export default function ProfilePage() {
           </div>
         ) : (
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <ProfileBasicFields form={form} majors={majorsData} majorsLoading={majorsLoading} />
-            <ProfileAdditionalFields form={form} />
+            <ProfileBasicFields key={`basic-${formFieldsKey}`} form={form} majors={majorsData} majorsLoading={majorsLoading} />
+            <ProfileAdditionalFields key={`additional-${formFieldsKey}`} form={form} />
             <ProfileKeywordSelector form={form} />
             <ProfileLanguageFields form={form} />
 

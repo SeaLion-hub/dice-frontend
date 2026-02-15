@@ -29,6 +29,28 @@ type Props = {
 export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
   const selectedCollege = form.watch("college");
   const selectedMajor = form.watch("major");
+  // #region agent log
+  const genderVal = form.watch("gender");
+  const gradeVal = form.watch("grade");
+  React.useEffect(() => {
+    fetch("http://127.0.0.1:7242/ingest/7ea9b1b-d104-4b2e-9787-6cd380f676d6", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hypothesisId: "D",
+        location: "ProfileBasicFields.tsx:render",
+        message: "Select field values in UI",
+        data: {
+          genderValue: genderVal,
+          gradeValue: gradeVal,
+          collegeValue: selectedCollege ? "set" : "empty",
+          majorValue: selectedMajor ? "set" : "empty",
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [genderVal, gradeVal, selectedCollege, selectedMajor]);
+  // #endregion
   const availableMajors = React.useMemo(() => {
     if (!selectedCollege) return [];
     return majors.find((item) => item.college === selectedCollege)?.majors ?? [];
@@ -56,7 +78,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
           name="gender"
           control={form.control}
           render={({ field }) => (
-            <Select value={field.value ?? "prefer_not_to_say"} onValueChange={field.onChange}>
+            <Select value={(field.value && String(field.value).trim()) ? field.value : "prefer_not_to_say"} onValueChange={field.onChange}>
               <SelectTrigger id="gender">
                 <SelectValue placeholder="성별 선택" />
               </SelectTrigger>
@@ -97,7 +119,7 @@ export function ProfileBasicFields({ form, majors, majorsLoading }: Props) {
           name="grade"
           control={form.control}
           render={({ field }) => (
-            <Select value={field.value ?? "1"} onValueChange={field.onChange}>
+            <Select value={(field.value && String(field.value).trim()) ? field.value : "1"} onValueChange={field.onChange}>
               <SelectTrigger id="grade">
                 <SelectValue placeholder="학년 선택" />
               </SelectTrigger>
