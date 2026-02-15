@@ -181,7 +181,7 @@ export default function NoticeDetailPage() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
           aria-label="이전 페이지로 돌아가기"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -195,9 +195,9 @@ export default function NoticeDetailPage() {
           {/* 제목 */}
           <header className="mb-6">
             {isDetailLoading ? (
-              <div className="h-8 w-2/3 animate-pulse rounded bg-gray-200" />
+              <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
             ) : (
-              <h1 className="text-3xl font-bold leading-tight text-gray-900">
+              <h1 className="text-3xl font-bold leading-tight text-foreground">
                 {noticeData?.title ?? "제목 없음"}
               </h1>
             )}
@@ -206,10 +206,10 @@ export default function NoticeDetailPage() {
           {/* 본문 */}
           {isDetailLoading ? (
             <div className="space-y-3">
-              <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
-              <div className="h-4 w-11/12 animate-pulse rounded bg-gray-200" />
-              <div className="h-4 w-10/12 animate-pulse rounded bg-gray-200" />
-              <div className="h-4 w-9/12 animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-full animate-pulse rounded bg-muted" />
+              <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-10/12 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-9/12 animate-pulse rounded bg-muted" />
             </div>
           ) : isDetailError ? (
             <div 
@@ -235,23 +235,23 @@ export default function NoticeDetailPage() {
             <article className="prose prose-gray max-w-none">
               {noticeData?.body_text ? (
                 // 1. 'body_text' (요청하신 컬럼)를 최우선으로 표시
-                <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
+                <div className="whitespace-pre-line text-[15px] leading-8 text-foreground">
                   {noticeData.body_text}
                 </div>
               ) : noticeData?.raw_text ? (
                 // 2. 'body_text'가 없을 경우 'raw_text' 표시
-                <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
+                <div className="whitespace-pre-line text-[15px] leading-8 text-foreground">
                   {noticeData.raw_text}
                 </div>
               ) : sanitizedBody ? (
                 // 3. 둘 다 없을 경우 'body_html' (sanitizedBody) 표시
                 <div
-                  className="text-[15px] leading-8 text-gray-800 [&_p]:mb-4 [&_ul]:mb-4 [&_ol]:mb-4 [&_li]:mb-2"
+                  className="text-[15px] leading-8 text-foreground [&_p]:mb-4 [&_ul]:mb-4 [&_ol]:mb-4 [&_li]:mb-2"
                   dangerouslySetInnerHTML={{ __html: sanitizedBody }}
                 />
               ) : (
                 // 4. 모두 없을 경우 'body' 또는 대체 텍스트 표시
-                <div className="whitespace-pre-line text-[15px] leading-8 text-gray-800">
+                <div className="whitespace-pre-line text-[15px] leading-8 text-foreground">
                   {noticeData?.body || "내용이 없습니다."}
                 </div>
               )}
@@ -260,9 +260,9 @@ export default function NoticeDetailPage() {
 
           {/* 일정 관리 섹션 - 본문 밑에 표시 */}
           {noticeData && shouldShowScheduleSection && (
-            <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-2 text-base font-semibold text-gray-900">일정 관리</h2>
-              <p className="mb-4 text-xs text-gray-500">마감 기한을 놓치지 않도록 서비스 캘린더에 저장해 보세요.</p>
+            <div className="mt-8 rounded-xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="mb-2 text-base font-semibold text-foreground">일정 관리</h2>
+              <p className="mb-4 text-xs text-muted-foreground">마감 기한을 놓치지 않도록 서비스 캘린더에 저장해 보세요.</p>
 
               {keyDates.length > 0 && (
                 <div className="space-y-3">
@@ -278,19 +278,19 @@ export default function NoticeDetailPage() {
                     return (
                       <div
                         key={entry.id}
-                        className="rounded-lg border border-blue-100 bg-blue-50 p-3"
+                        className="rounded-lg border border-primary/30 bg-primary/10 p-3"
                       >
                         <div className="flex items-start gap-3">
-                          <Clock className="mt-1 h-4 w-4 shrink-0 text-blue-600" />
+                          <Clock className="mt-1 h-4 w-4 shrink-0 text-primary" />
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="text-xs font-semibold text-blue-700">{entry.typeLabel}</p>
-                            <p className="text-sm font-medium text-blue-900">{entry.dateText}</p>
+                            <p className="text-xs font-semibold text-primary">{entry.typeLabel}</p>
+                            <p className="text-sm font-medium text-foreground">{entry.dateText}</p>
                             {entry.parsedDate ? (
-                              <p className="text-[11px] text-blue-700">
+                              <p className="text-[11px] text-primary">
                                 캘린더 저장 시: {formatParsedDate(entry.parsedDate)}
                               </p>
                             ) : (
-                              <p className="text-[11px] text-blue-600">
+                              <p className="text-[11px] text-primary">
                                 날짜 형식을 완전히 인식하지 못해요. 저장 전에 한 번 더 확인해 주세요.
                               </p>
                             )}
@@ -322,7 +322,7 @@ export default function NoticeDetailPage() {
                           </p>
                         )}
                         {!entry.parsedDate && (
-                          <p className="mt-2 rounded-md bg-white/60 px-2 py-1 text-[11px] text-blue-700">
+                          <p className="mt-2 rounded-md bg-card/60 px-2 py-1 text-[11px] text-primary">
                             캘린더에 직접 입력해 주세요.
                           </p>
                         )}
@@ -349,8 +349,8 @@ export default function NoticeDetailPage() {
             }
             
             return (
-              <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-2 text-base font-semibold text-gray-900">AI 자격 분석</h2>
+              <div className="mt-8 rounded-xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-2 text-base font-semibold text-foreground">AI 자격 분석</h2>
                 {isEligibilityError ? (
                   <div 
                     className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700"
@@ -380,19 +380,19 @@ export default function NoticeDetailPage() {
         {/* 사이드바 */}
         <aside className="space-y-4 lg:sticky lg:top-24 lg:h-fit">
           {/* 공지 정보 카드 */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-base font-semibold text-gray-900">공지 정보</h2>
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="mb-4 text-base font-semibold text-foreground">공지 정보</h2>
             <dl className="space-y-3 text-sm">
               {noticeData?.source_college && (
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                  <dt className="font-medium text-gray-700">출처</dt>
-                  <dd className="text-gray-600">{noticeData.source_college}</dd>
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <dt className="font-medium text-foreground">출처</dt>
+                  <dd className="text-muted-foreground">{noticeData.source_college}</dd>
                 </div>
               )}
               {postedAt && (
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                  <dt className="font-medium text-gray-700">게시일</dt>
-                  <dd className="text-gray-600">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <dt className="font-medium text-foreground">게시일</dt>
+                  <dd className="text-muted-foreground">
                     {new Date(postedAt).toLocaleDateString("ko-KR", {
                       year: "numeric",
                       month: "long",
@@ -416,7 +416,7 @@ export default function NoticeDetailPage() {
       {/* 관련 공지 추천 섹션 */}
       {isRelatedLoading ? (
         <section className="mt-12">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">관련 공지</h2>
+          <h2 className="mb-4 text-xl font-semibold text-foreground">관련 공지</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
               <NoticeCardSkeleton key={index} />
@@ -425,7 +425,7 @@ export default function NoticeDetailPage() {
         </section>
       ) : relatedNotices.length > 0 ? (
         <section className="mt-12">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">관련 공지</h2>
+          <h2 className="mb-4 text-xl font-semibold text-foreground">관련 공지</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {relatedNotices.map((notice) => (
               <div
@@ -437,7 +437,7 @@ export default function NoticeDetailPage() {
                     router.push(`/notices/${notice.id}`);
                   }
                 }}
-                className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg"
                 role="button"
                 tabIndex={0}
                 aria-label={`${notice.title} 공지사항 보기`}

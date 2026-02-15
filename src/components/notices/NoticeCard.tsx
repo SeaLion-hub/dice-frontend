@@ -351,8 +351,8 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
         ref={rootRef}
         className={clsx(
           'grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-xl',
-          'bg-white/70 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800',
-          'hover:bg-white dark:hover:bg-neutral-900 transition-colors',
+          'bg-card/80 dark:bg-card/60 border border-border',
+          'hover:bg-card dark:hover:bg-card/90 transition-colors',
           'cursor-pointer',
           // 마감일이 지난 경우 빨간색 테두리와 배경색 적용
           isDeadlinePassed && 'border-red-400 dark:border-red-600 bg-red-50/50 dark:bg-red-950/30'
@@ -375,11 +375,11 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
           <div className="min-w-0 truncate text-sm font-medium">
             {highlightQuery ? highlightText(item.title, highlightQuery) : item.title}
           </div>
-          {item.read && <span className="text-[10px] text-neutral-400">읽음</span>}
+          {item.read && <span className="text-[10px] text-muted-foreground">읽음</span>}
         </div>
 
         {/* 2️⃣ 대분류 (col-span-2) */}
-        <div className="col-span-2 flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300 truncate">
+        <div className="col-span-2 flex items-center gap-1 text-xs text-foreground truncate">
           <Tag className="w-3 h-3 shrink-0" />
           <span className="truncate">
             {Array.isArray(item.hashtags_ai) && item.hashtags_ai.length > 0
@@ -389,14 +389,14 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
         </div>
 
         {/* 3️⃣ 소분류 (col-span-2) */}
-        <div className="col-span-2 text-xs text-neutral-700 dark:text-neutral-300 truncate">
+        <div className="col-span-2 text-xs text-foreground truncate">
           {Array.isArray(item.detailed_hashtags) && item.detailed_hashtags.length > 0
             ? item.detailed_hashtags.join(', ')
             : '-'}
         </div>
 
         {/* 4️⃣ 출처 (col-span-1) */}
-        <div className="col-span-1 flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300 truncate">
+        <div className="col-span-1 flex items-center gap-1 text-xs text-foreground truncate">
           <MapPin className="w-3 h-3 shrink-0" />
           <span className="truncate" title={collegeName}>{collegeName}</span>
         </div>
@@ -415,8 +415,8 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
       ref={rootRef}
       className={clsx(
         'rounded-2xl p-4 border',
-        'bg-white/80 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800',
-        'hover:shadow-sm hover:bg-white dark:hover:bg-neutral-900 transition',
+        'bg-card/80 dark:bg-card/60 border-border',
+        'hover:shadow-sm hover:bg-card dark:hover:bg-card/90 transition',
         'cursor-pointer',
         // 마감일이 지난 경우 빨간색 테두리와 배경색 적용
         isDeadlinePassed && 'border-red-400 dark:border-red-600 bg-red-50/50 dark:bg-red-950/30'
@@ -444,12 +444,12 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
             </Badge>
           )}
           {item.read && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
               읽음
             </span>
           )}
           {Array.isArray(item.hashtags_ai) && item.hashtags_ai.length > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
               {item.hashtags_ai[0]}
             </span>
           )}
@@ -457,12 +457,12 @@ export default function NoticeCard({ item, dense = false, onClick, recommended =
       </div>
 
       {item.raw_text && (
-        <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-3">
+        <p className="mt-2 text-sm text-foreground line-clamp-3">
           {item.raw_text}
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-600 dark:text-neutral-400">
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <MapPin className="w-3 h-3" />
           <span>{collegeName}</span>
@@ -505,9 +505,9 @@ function getEligibilityVisual(status: NoticeItem['eligibility'] | null) {
     default:
       return {
         label: '미판단',
-        fillClass: 'bg-gray-400',
-        borderClass: 'border-gray-300',
-        outerBgClass: 'bg-gray-100',
+        fillClass: 'bg-muted-foreground',
+        borderClass: 'border-border',
+        outerBgClass: 'bg-muted',
       };
   }
 }

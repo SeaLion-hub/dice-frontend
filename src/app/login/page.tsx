@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/profile/FieldError";
+import { Logo } from "@/components/brand/Logo";
 
 // 환경 변수에서 API 베이스를 읽습니다.
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
@@ -92,10 +93,13 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-900 p-6">
-      <div className="w-full max-w-sm bg-white rounded-xl p-8 shadow-md border border-gray-200">
-        <h1 className="text-2xl font-semibold mb-2 text-center">DICE 로그인</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">
+    <main className="min-h-screen flex items-center justify-center bg-muted text-foreground p-6">
+      <div className="w-full max-w-sm bg-card rounded-xl p-8 shadow-md border border-border">
+        <div className="flex justify-center mb-4">
+          <Logo size="md" showText />
+        </div>
+        <h1 className="text-2xl font-semibold mb-2 text-center">로그인</h1>
+        <p className="text-sm text-muted-foreground mb-6 text-center">
           이메일과 비밀번호를 입력하여 계속하세요.
         </p>
 
@@ -129,7 +133,7 @@ export default function LoginPage() {
           </div>
 
           {errorMsg && (
-            <FieldError message={errorMsg} className="text-sm text-red-600 whitespace-pre-line" />
+            <FieldError message={errorMsg} className="text-sm text-destructive whitespace-pre-line" />
           )}
 
           <Button type="submit" disabled={loading} className="w-full">
@@ -137,11 +141,11 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="text-center text-sm text-gray-600 mt-6">
+        <div className="text-center text-sm text-muted-foreground mt-6">
           아직 계정이 없나요?{" "}
           <button
             type="button"
-            className="text-blue-600 hover:underline font-medium"
+            className="text-primary hover:underline font-medium"
             onClick={() => router.push("/register")}
           >
             회원가입

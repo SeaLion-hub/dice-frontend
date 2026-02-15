@@ -11,6 +11,7 @@ import NoticeCard from "@/components/notices/NoticeCard";
 import { NoticeCardSkeleton } from "@/components/notices/NoticeCardSkeleton";
 import { EmptyState } from "@/components/common/EmptyState";
 import BottomNav from "@/components/nav/BottomNav";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { useInfiniteNotices } from "@/hooks/useInfiniteNotices";
 import { useScrollTopButton } from "@/hooks/useScrollTop";
 import { KeywordFilterSelector } from "@/components/notices/KeywordFilterSelector";
@@ -390,8 +391,8 @@ export default function NoticesPage() {
     if (!isFetchingNextPage) return null;
     return (
       <div className="mt-4 flex flex-col items-center justify-center gap-2 text-center">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
-        <p className="text-xs text-gray-500">불러오는 중…</p>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-gray-700" />
+        <p className="text-xs text-muted-foreground">불러오는 중…</p>
       </div>
     );
   };
@@ -400,36 +401,39 @@ export default function NoticesPage() {
 
   return (
     <main className="mx-auto mb-20 max-w-screen-xl px-4 py-4">
-      <div className="sticky top-0 z-20 -mx-4 mb-4 bg-gray-100/80 backdrop-blur">
-        <div className="px-4 py-3 space-y-3">
+      <div className="sticky top-0 z-20 -mx-4 mb-4 bg-background/95 backdrop-blur-md border-b border-border">
+        <AppHeader />
+        <div className="px-4 py-3 space-y-3 border-t border-border/60 bg-muted/50">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
-              <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+              <div className="inline-flex rounded-xl border border-border bg-card p-1">
                 <button
+                  type="button"
                   onClick={() => handleSetTab("my")}
                   className={classNames(
-                    "rounded-lg px-3 py-1.5 text-sm",
-                    mounted && tab === "my" ? "bg-gray-100 font-medium" : "text-gray-600"
+                    "rounded-lg px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    mounted && tab === "my" ? "bg-muted font-medium" : "text-muted-foreground"
                   )}
                 >
                   맞춤 공지
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleSetTab("all")}
                   className={classNames(
-                    "rounded-lg px-3 py-1.5 text-sm",
-                    mounted && tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
+                    "rounded-lg px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    mounted && tab === "all" ? "bg-muted font-medium" : "text-muted-foreground"
                   )}
                 >
                   전체 공지
                 </button>
               </div>
-              <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+              <div className="inline-flex rounded-lg border border-border bg-card p-1">
                 <button
                   onClick={() => setViewMode("list")}
                   className={classNames(
                     "rounded px-2 py-1.5",
-                    viewMode === "list" ? "bg-gray-100 text-gray-900" : "text-gray-600"
+                    viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground"
                   )}
                   aria-label="리스트 뷰"
                 >
@@ -439,7 +443,7 @@ export default function NoticesPage() {
                   onClick={() => setViewMode("card")}
                   className={classNames(
                     "rounded px-2 py-1.5",
-                    viewMode === "card" ? "bg-gray-100 text-gray-900" : "text-gray-600"
+                    viewMode === "card" ? "bg-muted text-foreground" : "text-muted-foreground"
                   )}
                   aria-label="카드 뷰"
                 >
@@ -452,7 +456,7 @@ export default function NoticesPage() {
               <div className="relative w-full sm:w-72">
                 <form
                   onSubmit={handleSearchSubmit}
-                  className="flex w-full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm"
+                  className="flex w-full items-center overflow-hidden rounded-lg border border-border bg-card px-2 py-1 text-sm"
                 >
                   <SearchIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                   <input
@@ -471,7 +475,7 @@ export default function NoticesPage() {
                       // 약간의 지연을 두어 클릭 이벤트가 먼저 발생하도록
                       setTimeout(() => setShowSuggestions(false), 200);
                     }}
-                    className="w-full border-none p-0 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
+                    className="w-full border-none p-0 text-sm text-foreground placeholder-muted-foreground focus:outline-none"
                     placeholder="키워드 검색"
                   />
                   {searchQuery && (
@@ -482,7 +486,7 @@ export default function NoticesPage() {
                         setShowSuggestions(false);
                         searchInputRef.current?.focus();
                       }}
-                      className="mr-1 text-gray-400 hover:text-gray-600"
+                      className="mr-1 text-muted-foreground hover:text-muted-foreground"
                       aria-label="검색어 지우기"
                     >
                       <X className="h-4 w-4" />
@@ -490,7 +494,7 @@ export default function NoticesPage() {
                   )}
                   <button
                     type="submit"
-                    className="ml-2 whitespace-nowrap rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+                    className="ml-2 whitespace-nowrap rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
                   >
                     검색
                   </button>
@@ -498,11 +502,11 @@ export default function NoticesPage() {
 
                 {/* 검색 제안 드롭다운 */}
                 {showSuggestions && (
-                  <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-96 overflow-y-auto">
+                  <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-96 overflow-y-auto">
                     {/* 오타 교정 제안 */}
                     {corrections.length > 0 && (
                       <div className="p-2 border-b border-gray-100">
-                        <div className="mb-1 text-xs font-semibold text-gray-500">
+                        <div className="mb-1 text-xs font-semibold text-muted-foreground">
                           오타 교정 제안
                         </div>
                         {corrections.map((correction, i) => (
@@ -515,10 +519,10 @@ export default function NoticesPage() {
                               setShowSuggestions(false);
                               searchInputRef.current?.focus();
                             }}
-                            className="w-full rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between"
+                            className="w-full rounded px-2 py-1.5 text-left text-sm text-foreground hover:bg-primary/10 flex items-center justify-between"
                           >
                             <span className="font-medium">{correction.keyword}</span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-muted-foreground">
                               {Math.round(correction.score * 100)}% 일치
                             </span>
                           </button>
@@ -529,7 +533,7 @@ export default function NoticesPage() {
                     {/* 연관 검색어 */}
                     {relatedSearches.length > 0 && (
                       <div className="p-2 border-b border-gray-100">
-                        <div className="mb-1 text-xs font-semibold text-gray-500">
+                        <div className="mb-1 text-xs font-semibold text-muted-foreground">
                           연관 검색어
                         </div>
                         <div className="flex flex-wrap gap-1">
@@ -543,7 +547,7 @@ export default function NoticesPage() {
                                 setShowSuggestions(false);
                                 searchInputRef.current?.focus();
                               }}
-                              className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 hover:bg-gray-200 transition-colors"
+                              className="rounded-full bg-muted px-3 py-1 text-xs text-foreground hover:bg-muted transition-colors"
                             >
                               {related.keyword}
                             </button>
@@ -555,7 +559,7 @@ export default function NoticesPage() {
                     {/* 최근 검색어 매칭 */}
                     {searchSuggestions.length > 0 && (
                       <div className="p-2 border-b border-gray-100">
-                        <div className="mb-1 text-xs font-semibold text-gray-500">검색 제안</div>
+                        <div className="mb-1 text-xs font-semibold text-muted-foreground">검색 제안</div>
                         {searchSuggestions.map((suggestion, i) => (
                           <button
                             key={i}
@@ -566,7 +570,7 @@ export default function NoticesPage() {
                               setShowSuggestions(false);
                               searchInputRef.current?.focus();
                             }}
-                            className="w-full rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+                            className="w-full rounded px-2 py-1.5 text-left text-sm text-foreground hover:bg-muted"
                           >
                             {highlightText(suggestion, searchQuery)}
                           </button>
@@ -577,11 +581,11 @@ export default function NoticesPage() {
                     {/* 최근 검색어 (검색어가 없을 때만) */}
                     {!searchQuery && recentSearches.length > 0 && (
                       <div className="p-2">
-                        <div className="mb-1 text-xs font-semibold text-gray-500">최근 검색</div>
+                        <div className="mb-1 text-xs font-semibold text-muted-foreground">최근 검색</div>
                         {recentSearches.map((search, i) => (
                           <div
                             key={i}
-                            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 group"
+                            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm text-foreground hover:bg-muted group"
                           >
                             <button
                               type="button"
@@ -603,7 +607,7 @@ export default function NoticesPage() {
                                   return updated;
                                 });
                               }}
-                              className="shrink-0 ml-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                              className="shrink-0 ml-2 p-1 rounded text-muted-foreground hover:text-muted-foreground hover:bg-muted"
                               aria-label={`${search} 검색어 삭제`}
                             >
                               <X className="h-3 w-3" />
@@ -615,7 +619,7 @@ export default function NoticesPage() {
 
                     {/* 로딩 상태 */}
                     {isLoadingSuggestions && searchQuery && (
-                      <div className="p-2 text-center text-xs text-gray-400">
+                      <div className="p-2 text-center text-xs text-muted-foreground">
                         검색어 제안 불러오는 중...
                       </div>
                     )}
@@ -626,7 +630,7 @@ export default function NoticesPage() {
                      relatedSearches.length === 0 && 
                      searchSuggestions.length === 0 && 
                      searchQuery && (
-                      <div className="p-2 text-center text-xs text-gray-400">
+                      <div className="p-2 text-center text-xs text-muted-foreground">
                         검색어 제안이 없습니다
                       </div>
                     )}
@@ -640,7 +644,7 @@ export default function NoticesPage() {
                     <SlidersHorizontal className="h-4 w-4" />
                     <span className="text-sm">필터 · {sortLabel}</span>
                     {appliedFilterCount > 0 && (
-                      <span className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-medium text-white">
+                      <span className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-medium text-primary-foreground">
                         {appliedFilterCount}
                       </span>
                     )}
@@ -656,11 +660,11 @@ export default function NoticesPage() {
 
                   <div className="mt-6 space-y-4">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-gray-900">정렬</p>
+                      <p className="text-sm font-semibold text-foreground">정렬</p>
                       <select
                         value={draftSort}
                         onChange={(e) => setDraftSort(e.target.value as NoticeSort)}
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                        className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
                       >
                         <option value="recent">최신순</option>
                         <option value="oldest">과거순</option>
@@ -668,7 +672,7 @@ export default function NoticesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-gray-900">카테고리</p>
+                      <p className="text-sm font-semibold text-foreground">카테고리</p>
                       <KeywordFilterSelector
                         value={draftFilters.categories ?? []}
                         onChange={(next) =>
@@ -678,13 +682,13 @@ export default function NoticesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-gray-900">출처</p>
+                      <p className="text-sm font-semibold text-foreground">출처</p>
                       <select
                         value={draftFilters.sourceCollege ?? ""}
                         onChange={(e) =>
                           setDraftFilters((prev) => ({ ...prev, sourceCollege: e.target.value }))
                         }
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                        className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
                       >
                         <option value="">전체</option>
                         {collegeOptions.map((c) => (
@@ -696,7 +700,7 @@ export default function NoticesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-gray-900">기간</p>
+                      <p className="text-sm font-semibold text-foreground">기간</p>
                       <select
                         value={draftFilters.dateRange ?? "all"}
                         onChange={(e) =>
@@ -705,7 +709,7 @@ export default function NoticesPage() {
                             dateRange: (e.target.value || "all") as DateRange,
                           }))
                         }
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                        className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
                       >
                         <option value="all">전체</option>
                         <option value="1d">최근 1일</option>
@@ -739,7 +743,7 @@ export default function NoticesPage() {
                   {category}
                   <button
                     onClick={() => handleRemoveCategoryFilter(category)}
-                    className="ml-1.5 rounded-full hover:bg-blue-300 p-0.5"
+                    className="ml-1.5 rounded-full hover:bg-primary/30 p-0.5"
                     aria-label={`${category} 필터 제거`}
                   >
                     <X className="h-3 w-3" />
@@ -753,7 +757,7 @@ export default function NoticesPage() {
                   출처: {collegeOptions.find((c) => c.college_key === filters.sourceCollege)?.name || filters.sourceCollege}
                   <button
                     onClick={handleRemoveSourceCollegeFilter}
-                    className="ml-1.5 rounded-full hover:bg-blue-300 p-0.5"
+                    className="ml-1.5 rounded-full hover:bg-primary/30 p-0.5"
                     aria-label="출처 필터 제거"
                   >
                     <X className="h-3 w-3" />
@@ -767,7 +771,7 @@ export default function NoticesPage() {
                   기간: {filters.dateRange === "1d" ? "최근 1일" : filters.dateRange === "1w" ? "최근 1주" : "최근 1달"}
                   <button
                     onClick={handleRemoveDateRangeFilter}
-                    className="ml-1.5 rounded-full hover:bg-blue-300 p-0.5"
+                    className="ml-1.5 rounded-full hover:bg-primary/30 p-0.5"
                     aria-label="기간 필터 제거"
                   >
                     <X className="h-3 w-3" />
@@ -777,7 +781,7 @@ export default function NoticesPage() {
             </div>
           )}
 
-          <div className="hidden border-t border-gray-200 pt-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
+          <div className="hidden border-t border-border pt-2 text-[13px] text-muted-foreground md:grid md:grid-cols-12 md:gap-4">
             <div className="col-span-6">제목</div>
             <div className="col-span-2">대분류</div>
             <div className="col-span-2">소분류</div>
@@ -789,9 +793,9 @@ export default function NoticesPage() {
 
       {/* ====== 리스트/카드 컨테이너 ====== */}
       {viewMode === "list" ? (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
           {/* 헤더 */}
-          <div className="hidden border-b border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 md:grid md:grid-cols-12 md:gap-4">
+          <div className="hidden border-b border-border bg-muted/50 px-4 py-2 text-[13px] text-muted-foreground md:grid md:grid-cols-12 md:gap-4">
             <div className="col-span-6">제목</div>
             <div className="col-span-2">대분류</div>
             <div className="col-span-2">소분류</div>
@@ -800,14 +804,14 @@ export default function NoticesPage() {
           </div>
 
           {/* 바디 */}
-          <section className="divide-y divide-gray-200">
+          <section className="divide-y divide-border">
             {isLoading &&
               Array.from({ length: 6 }).map((_, i) => (
                 <NoticeCardSkeleton key={i} />
               ))}
 
             {isError && (
-              <div className="p-4 text-sm text-red-800">
+              <div className="p-4 text-sm text-destructive">
                 목록을 불러오지 못했어요.{" "}
                 <button className="underline" onClick={() => refetch()}>
                   다시 시도
@@ -837,11 +841,11 @@ export default function NoticesPage() {
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {isLoading &&
             Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-48 animate-pulse rounded-xl border border-gray-200 bg-white" />
+              <div key={i} className="h-48 animate-pulse rounded-xl border border-border bg-card" />
             ))}
 
           {isError && (
-            <div className="col-span-full rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="col-span-full rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
               목록을 불러오지 못했어요.{" "}
               <button className="underline" onClick={() => refetch()}>
                 다시 시도
@@ -874,7 +878,7 @@ export default function NoticesPage() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 right-4 z-50 rounded-full bg-blue-600 p-3 text-white shadow-lg hover:bg-blue-700"
+          className="fixed bottom-24 right-4 z-50 rounded-full bg-primary p-3 text-primary-foreground shadow-lg hover:bg-primary/90"
           aria-label="맨 위로"
         >
           ↑

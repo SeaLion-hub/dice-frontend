@@ -28,6 +28,7 @@ import { ProfileBasicFields } from "@/components/profile/ProfileBasicFields";
 import { ProfileAdditionalFields } from "@/components/profile/ProfileAdditionalFields";
 import { ProfileLanguageFields } from "@/components/profile/ProfileLanguageFields";
 import BottomNav from "@/components/nav/BottomNav";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { useApiError } from "@/hooks/useApiError";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
@@ -282,7 +283,7 @@ export default function ProfilePage() {
     // 프로필이 있으면 프로필 값으로 폼 초기화 (회원가입 시 설정한 성별/나이/전공 등 반영)
     const sanitizedKeywords = sanitizeKeywords(profile.keywords || []);
     const languageScoresFromProfile = buildLanguageScoresFromProfile(profile.language_scores);
-    const gradeRaw = profile.grade != null && profile.grade !== "" ? String(profile.grade) : "1";
+    const gradeRaw = profile.grade != null && String(profile.grade).trim() !== "" ? String(profile.grade) : "1";
     const gradeString = ALLOWED_GRADES.includes(gradeRaw as (typeof ALLOWED_GRADES)[number])
       ? (gradeRaw as (typeof ALLOWED_GRADES)[number])
       : "1";
@@ -641,10 +642,10 @@ export default function ProfilePage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24 animate-in fade-in duration-300">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">설정</h1>
+      <AppHeader title="설정" />
+      <header className="mb-6 mt-4">
         {userMe && (
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {userMe.email}
           </p>
         )}
@@ -675,15 +676,15 @@ export default function ProfilePage() {
 
       {/* 프로필 완성도 섹션 */}
       {isProfileLoading ? (
-        <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+        <section className="mb-8 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
-            <div className="h-5 w-5 animate-pulse rounded bg-gray-200" />
-            <div className="h-6 w-32 animate-pulse rounded bg-gray-200" />
+            <div className="h-5 w-5 animate-pulse rounded bg-muted" />
+            <div className="h-6 w-32 animate-pulse rounded bg-muted" />
           </div>
-          <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
+          <div className="h-4 w-full animate-pulse rounded bg-muted" />
         </section>
       ) : profile ? (
-        <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+        <section className="mb-8 rounded-lg border border-border bg-card p-6">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
             <User className="h-5 w-5" aria-hidden="true" />
             프로필 완성도
@@ -693,7 +694,7 @@ export default function ProfilePage() {
             {/* 프로그레스 바 */}
             <div>
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-medium text-gray-700">완성도</span>
+                <span className="font-medium text-foreground">완성도</span>
                 <span className={`font-semibold ${
                   completeness.percentage >= 80 ? "text-green-600" :
                   completeness.percentage >= 50 ? "text-amber-600" :
@@ -702,7 +703,7 @@ export default function ProfilePage() {
                   {completeness.percentage}%
                 </span>
               </div>
-              <div className="h-4 w-full overflow-hidden rounded-full bg-gray-200">
+              <div className="h-4 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full transition-all duration-500 ${
                     completeness.percentage >= 80 ? "bg-green-500" :
@@ -729,7 +730,7 @@ export default function ProfilePage() {
 
             {/* 완성도에 따른 안내 */}
             {completeness.percentage < 100 && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+              <div className="rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
                 <div className="font-semibold mb-1">
                   {completeness.percentage >= 80
                     ? "거의 완성되었어요"
@@ -737,7 +738,7 @@ export default function ProfilePage() {
                     ? "조금만 더 채워주세요"
                     : "프로필을 더 채워주세요"}
                 </div>
-                <p className="text-xs text-blue-700 mt-1">
+                <p className="text-xs text-primary mt-1">
                   {completeness.percentage >= 80
                     ? "프로필이 완성되면 더 정확한 맞춤 추천을 받을 수 있어요."
                     : "프로필을 완성할수록 AI가 더 정확하게 적합한 공지를 추천해드려요."}
@@ -757,24 +758,24 @@ export default function ProfilePage() {
         </section>
       ) : null}
 
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+      <section className="mb-8 rounded-lg border border-border bg-card p-6">
         <h2 className="mb-4 text-lg font-semibold">프로필 수정</h2>
 
         {isProfileLoading ? (
           <div className="space-y-4" role="status" aria-label="프로필 로딩 중">
             <div className="space-y-2">
-              <div className="h-4 w-24 animate-pulse rounded bg-gray-200" />
-              <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
             </div>
             <div className="space-y-2">
-              <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-              <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
             </div>
             <div className="space-y-2">
-              <div className="h-4 w-20 animate-pulse rounded bg-gray-200" />
-              <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
             </div>
-            <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
+            <div className="h-10 w-full animate-pulse rounded bg-muted" />
           </div>
         ) : (
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -916,7 +917,7 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
   }
 
   return (
-    <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+    <section className="mb-8 rounded-lg border border-border bg-card p-6">
       <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
         <Bell className="h-5 w-5" aria-hidden="true" />
         알림 설정
@@ -926,8 +927,8 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
         {/* 알림 활성화/비활성화 */}
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-medium text-gray-900">알림 받기</div>
-            <div className="text-sm text-gray-500">
+            <div className="font-medium text-foreground">알림 받기</div>
+            <div className="text-sm text-muted-foreground">
               마감 임박 공지에 대한 알림을 받습니다
             </div>
           </div>
@@ -935,7 +936,7 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
             type="button"
             onClick={() => setEnabled(!enabled)}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              enabled ? "bg-blue-600" : "bg-gray-300"
+              enabled ? "bg-primary" : "bg-muted"
             }`}
             aria-label={enabled ? "알림 끄기" : "알림 켜기"}
           >
@@ -951,10 +952,10 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
           <>
             {/* 마감일 알림 설정 */}
             <div>
-              <div className="mb-2 font-medium text-gray-900">
+              <div className="mb-2 font-medium text-foreground">
                 마감 몇 일 전에 알림 받을까요?
               </div>
-              <div className="text-sm text-gray-500 mb-3">
+              <div className="text-sm text-muted-foreground mb-3">
                 여러 개 선택 가능합니다
               </div>
               <div className="flex flex-wrap gap-2">
@@ -965,8 +966,8 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
                     onClick={() => toggleDeadlineDay(day)}
                     className={`rounded-full px-4 py-2 text-sm transition-colors ${
                       deadlineDays.includes(day)
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                   >
                     {day}일 전
@@ -977,10 +978,10 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
 
             {/* 카테고리 필터 */}
             <div>
-              <div className="mb-2 font-medium text-gray-900">
+              <div className="mb-2 font-medium text-foreground">
                 알림 받을 카테고리
               </div>
-              <div className="text-sm text-gray-500 mb-3">
+              <div className="text-sm text-muted-foreground mb-3">
                 선택하지 않으면 모든 카테고리에 대해 알림을 받습니다
               </div>
               <div className="flex flex-wrap gap-2">
@@ -991,8 +992,8 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
                     onClick={() => toggleCategory(category)}
                     className={`rounded-full px-4 py-2 text-sm transition-colors ${
                       categories.includes(category)
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                   >
                     {category}
@@ -1005,8 +1006,8 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-gray-900">브라우저 알림</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="font-medium text-foreground">브라우저 알림</div>
+                  <div className="text-sm text-muted-foreground">
                     브라우저 푸시 알림을 받습니다
                   </div>
                 </div>
@@ -1014,7 +1015,7 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
                   type="button"
                   onClick={() => setPushNotifications(!pushNotifications)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    pushNotifications ? "bg-blue-600" : "bg-gray-300"
+                    pushNotifications ? "bg-primary" : "bg-muted"
                   }`}
                 >
                   <span
@@ -1027,8 +1028,8 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-gray-900">이메일 알림</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="font-medium text-foreground">이메일 알림</div>
+                  <div className="text-sm text-muted-foreground">
                     이메일로 알림을 받습니다 (준비 중)
                   </div>
                 </div>
@@ -1037,7 +1038,7 @@ function NotificationSettingsSection({ token }: { token: string | null }) {
                   onClick={() => setEmailNotifications(!emailNotifications)}
                   disabled
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    emailNotifications ? "bg-blue-600" : "bg-gray-300"
+                    emailNotifications ? "bg-primary" : "bg-muted"
                   } opacity-50 cursor-not-allowed`}
                 >
                   <span

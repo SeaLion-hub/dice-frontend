@@ -37,6 +37,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -56,6 +57,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
   --primary: oklch(0.208 0.042 265.755);
+  --primary-dark: oklch(0.18 0.04 265);
   --primary-foreground: oklch(0.984 0.003 247.858);
   /* Yonsei-inspired light sky blue accents */
   --secondary: oklch(0.92 0.06 240.5);
@@ -91,6 +93,7 @@
   --popover: oklch(0.208 0.042 265.755);
   --popover-foreground: oklch(0.984 0.003 247.858);
   --primary: oklch(0.929 0.013 255.508);
+  --primary-dark: oklch(0.984 0.003 247.858);
   --primary-foreground: oklch(0.208 0.042 265.755);
   --secondary: oklch(0.42 0.065 236);
   --secondary-foreground: oklch(0.984 0.003 247.858);
@@ -135,6 +138,9 @@
     --dice-glass-bg: rgba(255, 255, 255, 0.6);
     --dice-glass-border: rgba(255, 255, 255, 0.2);
     --dice-glass-blur: 20px;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
 
   .glass-surface {

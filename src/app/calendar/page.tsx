@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List } from "lucide-react";
 import BottomNav from "@/components/nav/BottomNav";
+import { AppHeader } from "@/components/layout/AppHeader";
 import type { CalendarEvent } from "@/types/calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -272,32 +273,36 @@ export default function CalendarPage() {
 
   return (
     <main className="mx-auto mb-20 max-w-4xl px-4 py-6">
+      <AppHeader title="캘린더" />
       {/* 헤더 */}
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">캘린더</h1>
+      <header className="mb-6 mt-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-foreground">일정</h2>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1">
             <button
+              type="button"
               onClick={() => setViewMode("month")}
-              className={`rounded px-3 py-1 text-sm ${
-                viewMode === "month" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"
+              className={`rounded px-3 py-1 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                viewMode === "month" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"
               }`}
             >
               <CalendarIcon className="inline h-4 w-4 mr-1" />
               월
             </button>
             <button
+              type="button"
               onClick={() => setViewMode("week")}
-              className={`rounded px-3 py-1 text-sm ${
-                viewMode === "week" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"
+              className={`rounded px-3 py-1 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                viewMode === "week" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"
               }`}
             >
               주
             </button>
             <button
+              type="button"
               onClick={() => setViewMode("day")}
-              className={`rounded px-3 py-1 text-sm ${
-                viewMode === "day" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"
+              className={`rounded px-3 py-1 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                viewMode === "day" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"
               }`}
             >
               <List className="inline h-4 w-4 mr-1" />
@@ -311,10 +316,10 @@ export default function CalendarPage() {
       </header>
 
       {/* 네비게이션 */}
-      <div className="mb-4 flex items-center justify-between rounded-lg border bg-white p-4">
+      <div className="mb-4 flex items-center justify-between rounded-lg border bg-card p-4">
         <button
           onClick={goToPrevious}
-          className="rounded p-2 hover:bg-gray-100"
+          className="rounded p-2 hover:bg-muted"
           aria-label={`이전 ${viewMode === "month" ? "달" : viewMode === "week" ? "주" : "일"}`}
         >
           <ChevronLeft className="h-5 w-5" />
@@ -322,7 +327,7 @@ export default function CalendarPage() {
         <h2 className="text-lg font-semibold">{formatDate(currentDate)}</h2>
         <button
           onClick={goToNext}
-          className="rounded p-2 hover:bg-gray-100"
+          className="rounded p-2 hover:bg-muted"
           aria-label={`다음 ${viewMode === "month" ? "달" : viewMode === "week" ? "주" : "일"}`}
         >
           <ChevronRight className="h-5 w-5" />
@@ -331,12 +336,12 @@ export default function CalendarPage() {
 
       {/* 주간 뷰 */}
       {viewMode === "week" && (
-        <div className="rounded-lg border bg-white p-4">
+        <div className="rounded-lg border bg-card p-4">
           <div className="grid grid-cols-7 gap-1 mb-2">
             {dayNames.map((day) => (
               <div
                 key={day}
-                className="p-2 text-center text-sm font-medium text-gray-700"
+                className="p-2 text-center text-sm font-medium text-foreground"
               >
                 {day}
               </div>
@@ -351,13 +356,13 @@ export default function CalendarPage() {
                 <div
                   key={index}
                   className={`min-h-[120px] border p-2 ${
-                    isToday ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
-                  } cursor-pointer hover:bg-gray-50`}
+                    isToday ? "ring-2 ring-blue-500 bg-blue-50" : "bg-card"
+                  } cursor-pointer hover:bg-muted/50`}
                   onClick={() => handleDateClick(date)}
                 >
                   <div
                     className={`text-sm font-medium mb-2 ${
-                      isToday ? "text-blue-600" : "text-gray-900"
+                      isToday ? "text-primary" : "text-foreground"
                     }`}
                   >
                     {date.getDate()}
@@ -391,9 +396,9 @@ export default function CalendarPage() {
 
       {/* 일간 뷰 */}
       {viewMode === "day" && (
-        <div className="rounded-lg border bg-white p-4">
+        <div className="rounded-lg border bg-card p-4">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-foreground">
               {currentDate.toLocaleDateString("ko-KR", {
                 year: "numeric",
                 month: "long",
@@ -404,7 +409,7 @@ export default function CalendarPage() {
           </div>
           <div className="space-y-2">
             {dayEvents.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-8">이 날짜에는 일정이 없습니다.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">이 날짜에는 일정이 없습니다.</p>
             ) : (
               dayEvents.map((event) => {
                 const eventStart = new Date(event.startDate);
@@ -415,7 +420,7 @@ export default function CalendarPage() {
                   <div
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
-                    className={`cursor-pointer rounded-lg border p-3 hover:bg-gray-50 ${
+                    className={`cursor-pointer rounded-lg border p-3 hover:bg-muted/50 ${
                       isStart ? "border-l-4 border-l-green-500" : isEnd ? "border-l-4 border-l-red-500" : ""
                     }`}
                   >
@@ -423,8 +428,8 @@ export default function CalendarPage() {
                       {isStart && <span className="text-green-600 font-semibold">▶</span>}
                       {isEnd && <span className="text-red-600 font-semibold">◀</span>}
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900">{event.title}</div>
-                        <div className="text-sm text-gray-500">
+                        <div className="font-medium text-foreground">{event.title}</div>
+                        <div className="text-sm text-muted-foreground">
                           {new Date(event.startDate).toLocaleString("ko-KR", {
                             month: "long",
                             day: "numeric",
@@ -458,13 +463,13 @@ export default function CalendarPage() {
 
       {/* 월간 뷰 - 캘린더 그리드 (데스크톱) */}
       {viewMode === "month" && (
-      <div className="hidden rounded-lg border bg-white p-4 md:block">
+      <div className="hidden rounded-lg border bg-card p-4 md:block">
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {dayNames.map((day) => (
             <div
               key={day}
-              className="p-2 text-center text-sm font-medium text-gray-700"
+              className="p-2 text-center text-sm font-medium text-foreground"
             >
               {day}
             </div>
@@ -484,9 +489,9 @@ export default function CalendarPage() {
               <div
                 key={index}
                 className={`min-h-[80px] border p-1 ${
-                  isCurrentMonth ? "bg-white" : "bg-gray-50"
+                  isCurrentMonth ? "bg-card" : "bg-muted/50"
                 } ${isToday ? "ring-2 ring-blue-500" : ""} ${
-                  isCurrentMonth ? "cursor-pointer hover:bg-gray-50" : ""
+                  isCurrentMonth ? "cursor-pointer hover:bg-muted/50" : ""
                 }`}
                 onClick={() => isCurrentMonth && handleDateClick(date)}
               >
@@ -495,10 +500,10 @@ export default function CalendarPage() {
                     <div
                       className={`text-sm font-medium ${
                         isToday
-                          ? "text-blue-600"
+                          ? "text-primary"
                           : isCurrentMonth
-                          ? "text-gray-900"
-                          : "text-gray-400"
+                          ? "text-foreground"
+                          : "text-muted-foreground"
                       }`}
                     >
                       {date.getDate()}
@@ -523,7 +528,7 @@ export default function CalendarPage() {
                         </div>
                       ))}
                       {dayEvents.length > 2 && (
-                        <div className="text-[10px] text-gray-500">
+                        <div className="text-[10px] text-muted-foreground">
                           +{dayEvents.length - 2}개
                         </div>
                       )}
@@ -540,7 +545,7 @@ export default function CalendarPage() {
       {/* 모바일 뷰 */}
       <div className="md:hidden">
         {viewMode === "week" && (
-          <div className="rounded-lg border bg-white p-4">
+          <div className="rounded-lg border bg-card p-4">
             <div className="space-y-3">
               {weekDays.map((date) => {
                 const isToday = date.toDateString() === new Date().toDateString();
@@ -551,17 +556,17 @@ export default function CalendarPage() {
                     className={`rounded-lg border p-3 ${isToday ? "border-blue-500 bg-blue-50" : ""}`}
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-foreground">
                         {date.toLocaleDateString("ko-KR", {
                           month: "long",
                           day: "numeric",
                           weekday: "short",
                         })}
                       </div>
-                      {isToday && <span className="text-xs text-blue-600 font-medium">오늘</span>}
+                      {isToday && <span className="text-xs text-primary font-medium">오늘</span>}
                     </div>
                     {dayEvents.length === 0 ? (
-                      <p className="text-xs text-gray-400">일정 없음</p>
+                      <p className="text-xs text-muted-foreground">일정 없음</p>
                     ) : (
                       <div className="space-y-1">
                         {dayEvents.map(({ event, type }) => (
@@ -587,8 +592,8 @@ export default function CalendarPage() {
           </div>
         )}
         {viewMode === "day" && (
-          <div className="rounded-lg border bg-white p-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">
+          <div className="rounded-lg border bg-card p-4">
+            <h3 className="mb-3 text-base font-semibold text-foreground">
               {currentDate.toLocaleDateString("ko-KR", {
                 year: "numeric",
                 month: "long",
@@ -597,7 +602,7 @@ export default function CalendarPage() {
               })}
             </h3>
             {dayEvents.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-8">이 날짜에는 일정이 없습니다.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">이 날짜에는 일정이 없습니다.</p>
             ) : (
               <div className="space-y-2">
                 {dayEvents.map((event) => {
@@ -617,8 +622,8 @@ export default function CalendarPage() {
                         {isStart && <span className="text-green-600 font-semibold">▶</span>}
                         {isEnd && <span className="text-red-600 font-semibold">◀</span>}
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{event.title}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="font-medium text-foreground">{event.title}</div>
+                          <div className="text-xs text-muted-foreground">
                             {new Date(event.startDate).toLocaleString("ko-KR", {
                               month: "long",
                               day: "numeric",
@@ -650,10 +655,10 @@ export default function CalendarPage() {
           </div>
         )}
         {viewMode === "month" && (
-          <div className="rounded-lg border bg-white p-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">이번 달 일정</h3>
+          <div className="rounded-lg border bg-card p-4">
+            <h3 className="mb-3 text-base font-semibold text-foreground">이번 달 일정</h3>
             {sortedMonthEvents.length === 0 ? (
-              <p className="text-sm text-gray-500">저장된 일정이 없습니다.</p>
+              <p className="text-sm text-muted-foreground">저장된 일정이 없습니다.</p>
             ) : (
               <div className="space-y-3">
                 {sortedMonthEvents.map((event) => (
@@ -661,9 +666,9 @@ export default function CalendarPage() {
                     key={event.id}
                     type="button"
                     onClick={() => setSelectedEvent(event)}
-                    className="w-full rounded-lg border px-3 py-2 text-left hover:bg-gray-50"
+                    className="w-full rounded-lg border px-3 py-2 text-left hover:bg-muted/50"
                   >
-                    <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
                       <span>{event.title}</span>
                       {event.source === "auto" && (
                         <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
@@ -671,7 +676,7 @@ export default function CalendarPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {new Date(event.startDate).toLocaleDateString("ko-KR", {
                         month: "long",
                         day: "numeric",
@@ -691,18 +696,18 @@ export default function CalendarPage() {
       </div>
 
       {/* 이벤트 목록 */}
-      <div className="mt-6 rounded-lg border bg-white p-4 md:block hidden">
+      <div className="mt-6 rounded-lg border bg-card p-4 md:block hidden">
         <h3 className="mb-4 text-lg font-semibold">
           {formatDate(currentDate)} 일정
         </h3>
         {sortedMonthEvents.length === 0 ? (
-          <p className="text-center text-gray-500">저장된 일정이 없습니다.</p>
+          <p className="text-center text-muted-foreground">저장된 일정이 없습니다.</p>
         ) : (
           <div className="space-y-2">
             {sortedMonthEvents.map((event) => (
               <div
                 key={event.id}
-                className="flex items-center justify-between rounded-lg border p-3 hover:bg-gray-50"
+                className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
               >
                 <button
                   type="button"
@@ -717,7 +722,7 @@ export default function CalendarPage() {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     {new Date(event.startDate).toLocaleDateString("ko-KR", {
                       year: "numeric",
                       month: "long",
@@ -772,11 +777,11 @@ export default function CalendarPage() {
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <div className="text-sm font-medium text-gray-700">제목</div>
+                <div className="text-sm font-medium text-foreground">제목</div>
                 <div className="mt-1">{selectedEvent.title}</div>
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-700">시작일</div>
+                <div className="text-sm font-medium text-foreground">시작일</div>
                 <div className="mt-1">
                   {new Date(selectedEvent.startDate).toLocaleDateString(
                     "ko-KR",
@@ -790,7 +795,7 @@ export default function CalendarPage() {
               </div>
               {selectedEvent.endDate && (
                 <div>
-                  <div className="text-sm font-medium text-gray-700">종료일</div>
+                  <div className="text-sm font-medium text-foreground">종료일</div>
                   <div className="mt-1">
                     {new Date(selectedEvent.endDate).toLocaleDateString(
                       "ko-KR",

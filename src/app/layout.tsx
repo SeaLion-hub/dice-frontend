@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "DICE",
   description: "연세대 공지/일정·자격요건까지 한 번에. DICE.",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({

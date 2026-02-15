@@ -11,8 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Bell, Bot, Search } from "lucide-react";
-import FuzzyText from "@/components/FuzzyText"; // ← 실제 위치에 맞춰주세요
+import { Bell, Bot, Search, Eye, MessageCircle } from "lucide-react";
+import FuzzyText from "@/components/FuzzyText";
+import { Logo } from "@/components/brand/Logo";
 
 // ✅ 애니메이션 Variants를 이 파일 안에서 직접 정의
 const fadeInUp: Variants = {
@@ -34,7 +35,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-lg font-semibold text-foreground">DICE</span>
+            <Logo size="sm" showText />
           </Link>
 
           <Button asChild>
@@ -160,8 +161,8 @@ export default function LandingPage() {
       >
         <div className="mx-auto max-w-6xl flex flex-col items-center text-center gap-8">
           <div className="max-w-2xl">
-            <h2 className="text-2xl font-bold tracking-[-0.03em] text-primary-dark">
-              실제로 이렇게 보여요 👀
+            <h2 className="text-2xl font-bold tracking-[-0.03em] text-primary-dark flex items-center justify-center gap-2">
+              실제로 이렇게 보여요 <Eye className="h-6 w-6 shrink-0" aria-hidden />
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               맞춤 추천, 마감 임박 알림, 학과별 공지 통합까지.
@@ -300,8 +301,8 @@ export default function LandingPage() {
       >
         <div className="mx-auto max-w-6xl flex flex-col items-center text-center gap-10">
           <div className="max-w-2xl">
-            <h2 className="text-2xl font-bold tracking-[-0.03em] text-primary-dark">
-              학생들이 이미 쓰고 있어요 💬
+            <h2 className="text-2xl font-bold tracking-[-0.03em] text-primary-dark flex items-center justify-center gap-2">
+              학생들이 이미 쓰고 있어요 <MessageCircle className="h-6 w-6 shrink-0" aria-hidden />
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               "나만 손해보는 거 아냐?"라는 불안을 줄여주고
@@ -342,9 +343,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl flex flex-col gap-6 text-center md:flex-row md:items-start md:justify-between md:text-left">
           {/* 브랜드 / 미션 */}
           <div className="space-y-2">
-            <div className="text-lg font-semibold text-primary-dark">
-              DICE
-            </div>
+            <Logo size="sm" showText />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
               대학생이 절대 놓치면 안 되는 기회들을 한 곳에 모으는
               공지 어그리게이터 &amp; 알림 비서.

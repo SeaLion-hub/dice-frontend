@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/profile/FieldError";
+import { Logo } from "@/components/brand/Logo";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 /* =========================================
@@ -287,13 +288,13 @@ function RegisterInner() {
    * 렌더
    * ========================================= */
   return (
-    <main className="min-h-screen bg-gray-50 py-12 text-gray-900">
+    <main className="min-h-screen bg-muted py-12 text-foreground">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 md:px-6 lg:flex-row">
         <aside className="lg:w-72">
-          <div className="rounded-2xl border border-blue-100 bg-white/70 p-6 shadow-sm backdrop-blur">
-            <div className="text-sm font-semibold tracking-wide text-blue-600">DICE</div>
-            <h1 className="mt-3 text-xl font-bold text-gray-900">회원가입 진행</h1>
-            <p className="mt-2 text-sm text-gray-500">
+          <div className="rounded-2xl border border-border bg-card/90 p-6 shadow-sm backdrop-blur">
+            <Logo size="sm" showText />
+            <h1 className="mt-3 text-xl font-bold text-foreground">회원가입 진행</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               계정을 만들고 맞춤 공지 추천을 위한 프로필까지 한 번에 설정할 수 있어요.
             </p>
 
@@ -311,10 +312,10 @@ function RegisterInner() {
                     key={id}
                     className={`flex items-center gap-3 rounded-xl border px-3 py-2 transition ${
                       active
-                        ? "border-blue-500 bg-blue-50 text-blue-600 shadow-sm"
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
                         : done
-                        ? "border-green-100 bg-green-50 text-green-600"
-                        : "border-gray-200 bg-white text-gray-500"
+                        ? "border-primary/30 bg-primary/5 text-primary"
+                        : "border-border bg-card text-muted-foreground"
                     }`}
                   >
                     <span className="flex h-7 w-7 items-center justify-center rounded-full border border-current text-xs font-semibold">
@@ -329,9 +330,9 @@ function RegisterInner() {
         </aside>
 
         <div className="flex-1">
-          <div className="mb-6 hidden h-2 w-full overflow-hidden rounded-full bg-gray-200 md:block">
+          <div className="mb-6 hidden h-2 w-full overflow-hidden rounded-full bg-muted md:block">
             <div
-              className="h-full bg-blue-500 transition-all duration-300"
+              className="h-full bg-primary transition-all duration-300"
               style={{ width: `${(step / 4) * 100}%` }}
             />
           </div>
@@ -339,9 +340,9 @@ function RegisterInner() {
         {/* ---------- 1단계: 계정 ---------- */}
         {step === 1 && (
           <>
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-semibold text-gray-900">1단계 · 계정 만들기</h2>
-              <p className="mt-2 text-sm text-gray-500">
+            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <h2 className="text-2xl font-semibold text-foreground">1단계 · 계정 만들기</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 공지 알림을 받을 이메일과 비밀번호를 입력해주세요.
               </p>
 
@@ -393,9 +394,9 @@ function RegisterInner() {
                 </Button>
               </form>
 
-              <p className="mt-6 text-center text-sm text-gray-500">
+              <p className="mt-6 text-center text-sm text-muted-foreground">
                 이미 계정이 있으신가요?{" "}
-                <a href="/login" className="font-medium text-blue-600 hover:underline">
+                <a href="/login" className="font-medium text-primary hover:underline">
                   로그인하기
                 </a>
               </p>
@@ -406,9 +407,9 @@ function RegisterInner() {
         {/* ---------- 2단계: 기본 정보(필수) ---------- */}
         {step === 2 && (
           <>
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-semibold text-gray-900">2단계 · 기본 정보</h2>
-              <p className="mt-2 text-sm text-gray-500">
+            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <h2 className="text-2xl font-semibold text-foreground">2단계 · 기본 정보</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 맞춤 공지 추천을 위해 필수 정보를 입력해주세요.
               </p>
               <FormProvider {...profileForm}>
@@ -451,9 +452,9 @@ function RegisterInner() {
 
         {step === 3 && (
           <>
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-semibold text-gray-900">3단계 · 상세 정보</h2>
-              <p className="mt-2 text-sm text-gray-500">
+            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <h2 className="text-2xl font-semibold text-foreground">3단계 · 상세 정보</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 선택 정보지만 입력하면 맞춤 추천의 정확도가 높아집니다.
               </p>
               <FormProvider {...profileForm}>
@@ -488,9 +489,9 @@ function RegisterInner() {
 
         {step === 4 && (
           <>
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-semibold text-gray-900">4단계 · 관심 키워드</h2>
-              <p className="mt-2 text-sm text-gray-500">
+            <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <h2 className="text-2xl font-semibold text-foreground">4단계 · 관심 키워드</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 관심 키워드를 선택하면 맞춤 추천의 정확도가 향상됩니다.
               </p>
               <FormProvider {...profileForm}>

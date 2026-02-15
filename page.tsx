@@ -129,16 +129,16 @@ export default function NoticesPage() {
   const renderEmptyState = () => {
     if (tab === "my") {
       return (
-        <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-700">
-          <div className="font-medium text-gray-900">
+        <div className="col-span-full rounded-2xl border border-border bg-card p-6 text-sm text-foreground">
+          <div className="font-medium text-foreground">
             아직 맞춤 공지가 없어요.
           </div>
-          <div className="mt-2 text-gray-600">
+          <div className="mt-2 text-muted-foreground">
             프로필 정보를 더 채우면 더 정확한 맞춤 공지를 받을 수 있어요.
           </div>
           <Link
             href="/profile"
-            className="mt-4 inline-block rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+            className="mt-4 inline-block rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
             프로필 업데이트하기
           </Link>
@@ -148,11 +148,11 @@ export default function NoticesPage() {
 
     // tab === "all"
     return (
-      <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-700">
-        <div className="font-medium text-gray-900">
+      <div className="col-span-full rounded-2xl border border-border bg-card p-6 text-sm text-foreground">
+        <div className="font-medium text-foreground">
           조건에 맞는 공지가 없어요.
         </div>
-        <div className="mt-2 text-gray-600">
+        <div className="mt-2 text-muted-foreground">
           필터를 바꿔보세요.
         </div>
 
@@ -167,7 +167,7 @@ export default function NoticesPage() {
             setSort("recent");
             // 추후: refetch with cleared params
           }}
-          className="mt-4 inline-block rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          className="mt-4 inline-block rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
         >
           필터 초기화
         </button>
@@ -181,8 +181,8 @@ export default function NoticesPage() {
     return (
       <div className="mt-4 flex flex-col items-center justify-center gap-2 text-center">
         {/* 스피너 */}
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
-        <p className="text-xs text-gray-500">불러오는 중…</p>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
+        <p className="text-xs text-muted-foreground">불러오는 중…</p>
       </div>
     );
   };
@@ -190,17 +190,17 @@ export default function NoticesPage() {
   return (
     <main className="mx-auto mb-20 max-w-screen-xl px-4 py-4">
       {/* === Sticky Header: 탭 + 검색/필터/정렬 바 === */}
-      <div className="sticky top-0 z-10 -mx-4 mb-3 bg-gray-100/80 px-4 py-2 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-4 mb-3 bg-muted/80 px-4 py-2 backdrop-blur">
         {/* 탭 전환 */}
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+          <div className="inline-flex rounded-xl border border-border bg-card p-1">
             <button
               onClick={() => setTab("my")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
                 tab === "my"
-                  ? "bg-gray-100 font-medium"
-                  : "text-gray-600"
+                  ? "bg-muted font-medium"
+                  : "text-muted-foreground"
               )}
             >
               맞춤 공지
@@ -209,7 +209,7 @@ export default function NoticesPage() {
               onClick={() => setTab("all")}
               className={classNames(
                 "rounded-lg px-3 py-1.5 text-sm",
-                tab === "all" ? "bg-gray-100 font-medium" : "text-gray-600"
+                tab === "all" ? "bg-muted font-medium" : "text-muted-foreground"
               )}
             >
               전체 공지
@@ -221,19 +221,19 @@ export default function NoticesPage() {
             {/* 검색 */}
             <form
               onSubmit={handleSearchSubmit}
-              className="flex w-full items-center overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm md:w-64"
+              className="flex w-full items-center overflow-hidden rounded-lg border border-border bg-card px-2 py-1 text-sm md:w-64"
             >
-              <span className="mr-2 text-gray-400">🔍</span>
+              <span className="mr-2 text-muted-foreground">🔍</span>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border-none p-0 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
+                className="w-full border-none p-0 text-sm text-foreground placeholder-muted-foreground focus:outline-none"
                 placeholder="키워드 검색"
                 aria-label="공지 검색"
               />
               <button
                 type="submit"
-                className="ml-2 whitespace-nowrap rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+                className="ml-2 whitespace-nowrap rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
               >
                 검색
               </button>
@@ -243,7 +243,7 @@ export default function NoticesPage() {
             <select
               value={sort}
               onChange={handleSortChange}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
+              className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none"
               aria-label="정렬 기준 선택"
             >
               <option value="recent">최신순</option>
@@ -252,8 +252,8 @@ export default function NoticesPage() {
             </select>
 
             {/* category_ai 필터 */}
-            <div className="min-w-[12rem] rounded-lg border border-gray-200 bg-white px-2 py-2">
-              <p className="mb-2 text-xs font-semibold text-gray-900">카테고리</p>
+            <div className="min-w-[12rem] rounded-lg border border-border bg-card px-2 py-2">
+              <p className="mb-2 text-xs font-semibold text-foreground">카테고리</p>
               <KeywordFilterSelector
                 value={filters.categories ?? []}
                 onChange={(next) => setFilters({ categories: next })}
@@ -266,7 +266,7 @@ export default function NoticesPage() {
               onChange={(e) =>
                 handleFilterChange("sourceCollege", e.target.value)
               }
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
+              className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none"
               aria-label="소속 단과대/부서 필터"
             >
               <option value="">전체 소스</option>
@@ -282,7 +282,7 @@ export default function NoticesPage() {
               onChange={(e) =>
                 handleFilterChange("dateRange", e.target.value)
               }
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
+              className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none"
               aria-label="게시일 범위 필터"
             >
               <option value="all">전체 기간</option>
@@ -303,7 +303,7 @@ export default function NoticesPage() {
           Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-36 animate-pulse rounded-2xl border border-gray-200 bg-white"
+              className="h-36 animate-pulse rounded-2xl border border-border bg-card"
             />
           ))}
 
