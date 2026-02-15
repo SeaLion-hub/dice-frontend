@@ -164,6 +164,7 @@ export default function ProfilePage() {
     },
     enabled: !!token,
     staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
+    refetchOnMount: true, // 마운트 시 항상 최신 프로필 조회 (회원가입 직후 등)
   });
 
   const {
@@ -228,7 +229,7 @@ export default function ProfilePage() {
       return;
     }
 
-    // 프로필이 있으면 프로필 값으로 폼 초기화
+    // 프로필이 있으면 프로필 값으로 폼 초기화 (회원가입 시 설정한 성별/나이/전공 등 반영)
     const sanitizedKeywords = sanitizeKeywords(profile.keywords || []);
     const languageScoresFromProfile = buildLanguageScoresFromProfile(profile.language_scores);
     const gradeString = ALLOWED_GRADES.includes(
@@ -264,8 +265,9 @@ export default function ProfilePage() {
       languageScores: languageScoresFromProfile,
     };
 
-    // 시그니처가 변경되었을 때만 리셋 (프로필이 업데이트되었거나 처음 로드될 때)
-    if (lastHydratedRef.current !== signature) {
+    // 프로필이 로드되었을 때 항상 폼에 반영 (첫 로드 또는 프로필/전공 데이터 변경 시)
+    const alreadyHydratedForThisProfile = lastHydratedRef.current !== null && lastHydratedRef.current.startsWith(profile.user_id);
+    if (!alreadyHydratedForThisProfile || lastHydratedRef.current !== signature) {
       form.reset(expectedValues, { 
         keepDefaultValues: false,
         keepErrors: false,
@@ -275,7 +277,6 @@ export default function ProfilePage() {
         keepIsValid: false,
         keepSubmitCount: false,
       });
-      
       lastHydratedRef.current = signature;
     }
   }, [profile, majorsData, majorsLoading, form]);

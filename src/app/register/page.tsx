@@ -213,8 +213,8 @@ function RegisterInner() {
       if (Object.keys(language_scores).length > 0)
         payload.language_scores = language_scores;
 
-      // 5) 최종 전송
-      const profileRes = await fetch(`${API_BASE}/auth/me/profile`, {
+      // 5) 최종 전송 - BFF 경로 사용 (프로필 페이지와 동일 백엔드로 저장되도록)
+      const profileRes = await fetch("/api/auth/me/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
