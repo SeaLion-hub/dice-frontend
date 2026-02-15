@@ -196,7 +196,8 @@ export default function ProfilePage() {
     lastHydratedRef.current = null;
   }, [token]);
 
-  React.useEffect(() => {
+  // useLayoutEffect: 폼이 화면에 그려지기 전에 프로필 값으로 채워서, 빈 칸이 잠깐 보이는 현상 방지
+  React.useLayoutEffect(() => {
     if (profile === undefined) return;
 
     const signature = profile
@@ -219,7 +220,7 @@ export default function ProfilePage() {
     if (profile === null) {
       // 프로필이 없으면 기본값으로 초기화
       if (lastHydratedRef.current !== signature) {
-        form.reset(defaults, { 
+        form.reset(defaults, {
           keepDefaultValues: false,
           keepErrors: false,
           keepDirty: false,
@@ -240,16 +241,12 @@ export default function ProfilePage() {
     const ageString = profile.age != null ? String(profile.age) : "";
 
     // college 필드: 프로필에 저장된 값이 있으면 사용, 없으면 전공으로부터 추론
-    // majors가 로드되지 않았어도 프로필에 저장된 college 값은 사용 가능
     let derivedCollege = profile.college ?? "";
     if (!derivedCollege && profile.major && !majorsLoading && majorsData.length > 0) {
-      // 전공으로부터 단과대 찾기 (정확한 매칭)
-      const collegeFromMajor = majorsData.find((item) => 
-        item.majors.some(m => m.toLowerCase() === profile.major?.toLowerCase())
+      const collegeFromMajor = majorsData.find((item) =>
+        item.majors.some((m) => m.toLowerCase() === profile.major?.toLowerCase())
       )?.college;
-      if (collegeFromMajor) {
-        derivedCollege = collegeFromMajor;
-      }
+      if (collegeFromMajor) derivedCollege = collegeFromMajor;
     }
 
     const expectedValues: ProfileFormValues = {
@@ -265,10 +262,10 @@ export default function ProfilePage() {
       languageScores: languageScoresFromProfile,
     };
 
-    // 프로필이 로드되었을 때 항상 폼에 반영 (첫 로드 또는 프로필/전공 데이터 변경 시)
-    const alreadyHydratedForThisProfile = lastHydratedRef.current !== null && lastHydratedRef.current.startsWith(profile.user_id);
+    const alreadyHydratedForThisProfile =
+      lastHydratedRef.current !== null && lastHydratedRef.current.startsWith(profile.user_id);
     if (!alreadyHydratedForThisProfile || lastHydratedRef.current !== signature) {
-      form.reset(expectedValues, { 
+      form.reset(expectedValues, {
         keepDefaultValues: false,
         keepErrors: false,
         keepDirty: false,
